@@ -1,0 +1,20 @@
+# 로그
+server.log
+*.log
+
+# 백업 폴더
+backup/
+
+# Claude 설정
+.claude/
+
+# 임시 파일
+nul
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 민감정보 (API 키 등은 코드에 직접 넣지 마세요)
+.env
