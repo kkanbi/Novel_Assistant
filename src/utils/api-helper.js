@@ -11,23 +11,24 @@ import { CLAUDE_CONFIG } from './constants.js';
  */
 export function getAnthropicApiUrl() {
     const baseUrl = 'https://api.anthropic.com/v1/messages';
+    const hostname = window.location.hostname;
 
-    // GitHub Pages 환경 감지
-    const isGitHubPages = window.location.hostname.includes('github.io');
-
+    // GitHub Pages 환경
+    const isGitHubPages = hostname.includes('github.io');
     if (isGitHubPages) {
-        // Cloudflare Workers 프록시가 설정되어 있으면 사용
         if (CLAUDE_CONFIG.WORKER_URL) {
             return CLAUDE_CONFIG.WORKER_URL;
         }
-
-        // 프록시 미설정 시 corsproxy.io 사용 (임시 방편)
         console.warn('⚠️ Cloudflare Workers 프록시가 설정되지 않았습니다. corsproxy.io를 사용합니다.');
-        console.warn('📋 SETUP-GUIDE.md를 참고하여 Cloudflare Workers를 설정하세요.');
         return 'https://corsproxy.io/?' + encodeURIComponent(baseUrl);
     }
 
-    // 로컬 환경에서는 직접 호출
+    // 로컬 서버 환경 (localhost / 127.0.0.1): 로컬 프록시 사용
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return `${window.location.origin}/api/claude`;
+    }
+
+    // 그 외 환경 (file:// 등): 직접 호출
     return baseUrl;
 }
 
