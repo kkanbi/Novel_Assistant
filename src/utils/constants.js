@@ -13,7 +13,7 @@ export const AUTOSAVE_DELAY = {
 };
 
 export const CLAUDE_CONFIG = {
-    MODEL: 'claude-3-5-sonnet-20241022',
+    MODEL: 'claude-sonnet-4-6',
     MAX_TOKENS: 2048,
     PRICING: {
         INPUT_PER_MILLION: 3,
