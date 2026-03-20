@@ -47,6 +47,8 @@ function getSectionType(name) {
 
 /**
  * 검토 결과에서 { text, type } 목록 추출
+ * - 신형식: ## 헤더, - '원문' → '수정안'
+ * - 구형식: [N. 항목명], `백틱 인용`
  */
 function getProblematicTexts() {
     const vol = state.project.currentVolume;
@@ -59,9 +61,16 @@ function getProblematicTexts() {
     let currentType = 'default';
 
     ep.reviewResult.split('\n').forEach(line => {
+        // 신형식 섹션: ## 맞춤법
         if (line.startsWith('## ')) {
             currentType = getSectionType(line.slice(3));
-        } else if (line.startsWith('- ')) {
+        }
+        // 구형식 섹션: [3. 설정 일관성]
+        else if (/^\[\d+\.\s/.test(line) && line.endsWith(']')) {
+            currentType = getSectionType(line.replace(/^\[\d+\.\s*/, '').replace(/\]$/, ''));
+        }
+        // 신형식 항목: - '원문' 또는 - '원문' → '수정안'
+        else if (line.startsWith('- ')) {
             const arrowMatch = line.match(/'([^']+)'\s*→/);
             if (arrowMatch && !seen.has(arrowMatch[1]) && arrowMatch[1].length >= 2) {
                 seen.add(arrowMatch[1]);
@@ -70,6 +79,15 @@ function getProblematicTexts() {
             }
             for (const m of line.matchAll(/'([^']+)'/g)) {
                 if (!seen.has(m[1]) && m[1].length >= 2) {
+                    seen.add(m[1]);
+                    problems.push({ text: m[1], type: currentType });
+                }
+            }
+        }
+        // 구형식: 모든 줄에서 `백틱` 인용 추출 (최대 30자)
+        else {
+            for (const m of line.matchAll(/`([^`]{2,30})`/g)) {
+                if (!seen.has(m[1])) {
                     seen.add(m[1]);
                     problems.push({ text: m[1], type: currentType });
                 }
@@ -101,7 +119,16 @@ function applyHighlight(editor) {
             html = html.replace(regex, `<span class="review-problem-${type}">${escaped}</span>`);
         });
     } else {
-        // 폴백: 문장 길이 기반 하이라이트 (한국어 기준 조정)
+        // 검토결과 있는데 파싱 실패(구형식 등) → 노란 폴백 대신 무하이라이트
+        const vol = state.project.currentVolume;
+        const epIdx = state.currentEpisodeIndex;
+        const ep = state.project.volumes?.[vol]?.episodes?.[epIdx];
+        if (ep?.reviewResult) {
+            highlightOverlay.innerHTML = '';
+            syncScrollPosition();
+            return;
+        }
+        // 검토결과 자체가 없을 때만 문장 길이 기반 하이라이트
         const sentences = text.split(/([.!?。]\s+|[.!?。]$)/);
         html = '';
         sentences.forEach(sentence => {

@@ -289,9 +289,17 @@ export function renderReviewResult(container, text) {
 
     lines.forEach(line => {
         if (line.startsWith('## ')) {
+            // 신형식 섹션 헤더
             if (inSection) html += '</div>';
             currentType = getSectionType(line.slice(3));
             html += `<div class="review-section"><h4 class="type-${currentType}">${escapeHtml(line.slice(3))}</h4>`;
+            inSection = true;
+        } else if (/^\[\d+\.\s/.test(line) && line.endsWith(']')) {
+            // 구형식 섹션 헤더: [3. 설정 일관성]
+            if (inSection) html += '</div>';
+            const sectionName = line.replace(/^\[\d+\.\s*/, '').replace(/\]$/, '');
+            currentType = getSectionType(sectionName);
+            html += `<div class="review-section"><h4 class="type-${currentType}">${escapeHtml(sectionName)}</h4>`;
             inSection = true;
         } else if (line.startsWith('### ')) {
             html += `<div class="review-line" style="font-weight:600;margin:4px 0 2px;">${escapeHtml(line.slice(4))}</div>`;
@@ -305,7 +313,13 @@ export function renderReviewResult(container, text) {
             }
             html += `<div class="review-card clickable type-${currentType}"${dataAttrs}>${escapeHtml(cardText)}</div>`;
         } else if (line.trim()) {
-            html += `<div class="review-line">${escapeHtml(line)}</div>`;
+            // 구형식 본문 라인 — 백틱 인용이 있으면 클릭 가능
+            const backtickMatch = line.match(/`([^`]{2,30})`/);
+            if (backtickMatch) {
+                html += `<div class="review-line legacy-clickable" data-original="${escapeAttr(backtickMatch[1])}" style="cursor:pointer;">${escapeHtml(line)}</div>`;
+            } else {
+                html += `<div class="review-line">${escapeHtml(line)}</div>`;
+            }
         }
     });
 
@@ -313,6 +327,11 @@ export function renderReviewResult(container, text) {
 
     container.innerHTML = html;
     container.className = 'result-content';
+
+    // 구형식 백틱 라인 클릭 → 본문 이동
+    container.querySelectorAll('.legacy-clickable').forEach(line => {
+        line.addEventListener('click', () => scrollToText(line.dataset.original));
+    });
 
     // 카드 클릭: 자동수정 or 본문 이동 → applied 표시
     container.querySelectorAll('.review-card.clickable').forEach(card => {
