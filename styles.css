@@ -2081,7 +2081,8 @@ body {
     overflow-y: auto;
     white-space: pre-wrap;
     word-wrap: break-word;
-    z-index: 1;
+    box-sizing: border-box;
+    z-index: 3;
 }
 
 .editor {

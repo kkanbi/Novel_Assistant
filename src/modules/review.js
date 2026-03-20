@@ -5,6 +5,7 @@ import { getWorldText } from './world.js';
 import { CLAUDE_CONFIG } from '../utils/constants.js';
 import { addUsage, calculateCost, resetUsage, updateUsageDisplay } from '../utils/api-usage.js';
 import { getAnthropicApiUrl, createApiRequestOptions, getApiErrorMessage } from '../utils/api-helper.js';
+import { state } from '../core/state.js';
 
 let claudeApiKey = '';
 let els = {};
@@ -126,67 +127,127 @@ ${content}
 
 문제가 없는 항목은 "양호함"으로 표시해주세요.`;
 
-    try {
-        // 로딩 상태 표시
-        els.aiResult.textContent = '🤖 AI가 원고를 검토하고 있습니다...\n잠시만 기다려주세요.';
-        els.aiResult.className = 'result-content loading';
+    // 검토 버튼 비활성화
+    const btnAiCheck = document.getElementById('btnAiCheck');
+    if (btnAiCheck) btnAiCheck.disabled = true;
 
-        // API 호출 준비 (CORS 처리 자동)
-        const payload = {
-            model: CLAUDE_CONFIG.MODEL,
-            max_tokens: 4000,
-            messages: [{
-                role: 'user',
-                content: prompt
-            }]
-        };
+    // 타이머 설정
+    let elapsedSeconds = 0;
+    let timerInterval = null;
 
-        // 환경에 맞는 API URL 가져오기 (로컬/GitHub Pages 자동 감지)
-        const apiUrl = getAnthropicApiUrl();
-        const requestOptions = createApiRequestOptions(claudeApiKey, payload);
-
-        const response = await fetch(apiUrl, requestOptions);
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error('API Error Response:', errorData);
-            const errorMsg = errorData.error?.message || JSON.stringify(errorData);
-            throw new Error(`API 오류 (${response.status}): ${errorMsg}`);
-        }
-
-        const result = await response.json();
-        console.log('API Success Response:', result);
-
-        if (!result.content || !result.content[0] || !result.content[0].text) {
-            throw new Error('응답 형식이 올바르지 않습니다.');
-        }
-
-        const reviewResult = result.content[0].text;
-
-        // 토큰 사용량 및 비용 계산
-        const inputTokens = result.usage.input_tokens;
-        const outputTokens = result.usage.output_tokens;
-        const cost = calculateCost(inputTokens, outputTokens);
-
-        // 사용량 기록
-        addUsage('review', cost, inputTokens, outputTokens);
-
-        // 결과 표시
-        els.aiResult.textContent = reviewResult;
-        els.aiResult.className = 'result-content';
-
-        // 예상 비용 표시
-        document.getElementById('estimatedCost').textContent = `$${cost.toFixed(4)}`;
-
-    } catch (error) {
-        console.error('AI Review Error:', error);
-
-        // 헬퍼 함수로 일관된 에러 메시지 생성
-        const errorMessage = getApiErrorMessage(error);
-
-        els.aiResult.textContent = errorMessage;
-        els.aiResult.className = 'result-content error';
+    function updateLoadingText(statusMsg = '') {
+        const statusLine = statusMsg ? `\n${statusMsg}` : '';
+        els.aiResult.textContent = `🤖 AI가 원고를 검토하고 있습니다...\n⏱ ${elapsedSeconds}초 경과${statusLine}`;
     }
+
+    els.aiResult.textContent = '🤖 AI가 원고를 검토하고 있습니다...\n⏱ 0초 경과';
+    els.aiResult.className = 'result-content loading';
+
+    timerInterval = setInterval(() => {
+        elapsedSeconds++;
+        updateLoadingText();
+    }, 1000);
+
+    // API 호출 준비
+    const payload = {
+        model: CLAUDE_CONFIG.MODEL,
+        max_tokens: 4000,
+        messages: [{
+            role: 'user',
+            content: prompt
+        }]
+    };
+
+    const apiUrl = getAnthropicApiUrl();
+    const requestOptions = createApiRequestOptions(claudeApiKey, payload);
+
+    const MAX_RETRIES = 3;
+    const TIMEOUT_MS = 60000;
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            if (attempt > 1) {
+                const delayMs = Math.pow(2, attempt - 1) * 1000; // 2s, 4s
+                elapsedSeconds = 0;
+                updateLoadingText(`⚠️ ${attempt - 1}번 응답 없음 — ${delayMs / 1000}초 후 재시도 중...`);
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+                updateLoadingText(`🔄 ${attempt}번째 시도 중...`);
+            }
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+            let response;
+            try {
+                response = await fetch(apiUrl, { ...requestOptions, signal: controller.signal });
+            } finally {
+                clearTimeout(timeoutId);
+            }
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('API Error Response:', errorData);
+                const errorMsg = errorData.error?.message || JSON.stringify(errorData);
+                throw new Error(`API 오류 (${response.status}): ${errorMsg}`);
+            }
+
+            const result = await response.json();
+            console.log('API Success Response:', result);
+
+            if (!result.content || !result.content[0] || !result.content[0].text) {
+                throw new Error('응답 형식이 올바르지 않습니다.');
+            }
+
+            const reviewResult = result.content[0].text;
+
+            // 토큰 사용량 및 비용 계산
+            const inputTokens = result.usage.input_tokens;
+            const outputTokens = result.usage.output_tokens;
+            const cost = calculateCost(inputTokens, outputTokens);
+
+            addUsage('review', cost, inputTokens, outputTokens);
+
+            // 검토 결과를 현재 에피소드의 state에 저장 (Google Drive 저장 시 포함됨)
+            const vol = state.project.currentVolume;
+            const epIdx = state.currentEpisodeIndex;
+            if (state.project.volumes[vol]?.episodes[epIdx]) {
+                state.project.volumes[vol].episodes[epIdx].reviewResult = reviewResult;
+            }
+
+            clearInterval(timerInterval);
+            if (btnAiCheck) btnAiCheck.disabled = false;
+
+            els.aiResult.textContent = reviewResult;
+            els.aiResult.className = 'result-content';
+
+            document.getElementById('estimatedCost').textContent = `$${cost.toFixed(4)}`;
+            return; // 성공 → 루프 종료
+
+        } catch (error) {
+            lastError = error;
+            const isTimeout = error.name === 'AbortError';
+            console.warn(`AI Review 시도 ${attempt} 실패:`, error.message);
+
+            if (!isTimeout || attempt === MAX_RETRIES) {
+                // 타임아웃이 아닌 오류이거나 마지막 재시도 실패
+                break;
+            }
+            // 타임아웃이면 루프 계속 (재시도)
+        }
+    }
+
+    // 모든 시도 실패
+    clearInterval(timerInterval);
+    if (btnAiCheck) btnAiCheck.disabled = false;
+
+    console.error('AI Review 최종 실패:', lastError);
+    const errorMessage = lastError?.name === 'AbortError'
+        ? `⏱ ${MAX_RETRIES}회 시도 모두 응답 없음 (각 ${TIMEOUT_MS / 1000}초 초과).\n\n네트워크 상태를 확인하고 다시 시도해주세요.\n\n` + getApiErrorMessage(lastError)
+        : getApiErrorMessage(lastError);
+
+    els.aiResult.textContent = errorMessage;
+    els.aiResult.className = 'result-content error';
 }
 
 // estimateCost와 updateUsageDisplay는 api-usage.js로 이동됨
