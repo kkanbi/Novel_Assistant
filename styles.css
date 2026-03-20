@@ -2102,6 +2102,12 @@ body {
     color: transparent;
 }
 
+.review-problem {
+    background: rgba(255, 80, 80, 0.3);
+    border-bottom: 2px solid rgba(220, 50, 50, 0.7);
+    color: transparent;
+}
+
 /* 포모도로 타이머 */
 .pomodoro-timer {
     position: fixed;

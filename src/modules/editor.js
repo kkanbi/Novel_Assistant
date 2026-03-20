@@ -102,9 +102,25 @@ function getCurrentEpisode() {
 }
 
 /**
- * 텍스트 위치로 스크롤 (가운데 정렬)
- * @param {string} searchText
+ * 본문에서 텍스트 교체 후 중앙 스크롤
  */
+export function replaceEditorText(original, replacement) {
+    const content = els.episodeContent.value;
+    const index = content.indexOf(original);
+    if (index === -1) return false;
+
+    els.episodeContent.value =
+        content.substring(0, index) + replacement + content.substring(index + original.length);
+
+    handleContentChange();
+    autoSaveLocal();
+    // input 이벤트를 발생시켜 하이라이트 오버레이도 갱신
+    els.episodeContent.dispatchEvent(new Event('input'));
+    scrollToText(replacement);
+    return true;
+}
+
+
 export function scrollToText(searchText) {
     const content = els.episodeContent.value;
     const index = content.indexOf(searchText);

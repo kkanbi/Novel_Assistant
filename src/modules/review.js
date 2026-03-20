@@ -1,4 +1,5 @@
 // review.js - AI 퇴고 모듈 (간소화 버전)
+import { scrollToText, replaceEditorText } from './editor.js';
 import { getCoreText } from './core-settings.js';
 import { getCharactersText } from './characters.js';
 import { getWorldText } from './world.js';
@@ -252,6 +253,22 @@ ${content}
 }
 
 /**
+ * 카드 텍스트에서 원문/수정안 추출
+ * 패턴: '원문' → '수정안'  또는  '원문'
+ */
+function parseCardText(raw) {
+    const arrowMatch = raw.match(/'([^']+)'\s*→\s*'([^']+)'/);
+    if (arrowMatch) return { original: arrowMatch[1], correction: arrowMatch[2] };
+    const quotedMatch = raw.match(/'([^']+)'/);
+    if (quotedMatch) return { original: quotedMatch[1], correction: null };
+    return null;
+}
+
+function escapeAttr(str) {
+    return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
+/**
  * 검토 결과 마크다운을 HTML로 렌더링
  */
 export function renderReviewResult(container, text) {
@@ -273,7 +290,14 @@ export function renderReviewResult(container, text) {
         } else if (line.startsWith('### ')) {
             html += `<div class="review-line" style="font-weight:600;margin:4px 0 2px;">${escapeHtml(line.slice(4))}</div>`;
         } else if (line.startsWith('- ')) {
-            html += `<div class="review-card clickable">${escapeHtml(line.slice(2))}</div>`;
+            const cardText = line.slice(2);
+            const parsed = parseCardText(cardText);
+            let dataAttrs = '';
+            if (parsed?.original) {
+                dataAttrs += ` data-original="${escapeAttr(parsed.original)}"`;
+                if (parsed.correction) dataAttrs += ` data-correction="${escapeAttr(parsed.correction)}"`;
+            }
+            html += `<div class="review-card clickable"${dataAttrs}>${escapeHtml(cardText)}</div>`;
         } else if (line.trim()) {
             html += `<div class="review-line">${escapeHtml(line)}</div>`;
         }
@@ -284,9 +308,27 @@ export function renderReviewResult(container, text) {
     container.innerHTML = html;
     container.className = 'result-content';
 
-    // 카드 클릭 → applied(취소선) 토글
+    // 카드 클릭: 자동수정 or 본문 이동 → applied 표시
     container.querySelectorAll('.review-card.clickable').forEach(card => {
-        card.addEventListener('click', () => card.classList.toggle('applied'));
+        card.addEventListener('click', () => {
+            if (card.classList.contains('applied')) {
+                card.classList.remove('applied');
+                return;
+            }
+            const original = card.dataset.original;
+            const correction = card.dataset.correction;
+
+            if (original && correction) {
+                const success = replaceEditorText(original, correction);
+                if (success) {
+                    card.classList.add('applied');
+                    return;
+                }
+            } else if (original) {
+                scrollToText(original);
+            }
+            card.classList.add('applied');
+        });
     });
 }
 
