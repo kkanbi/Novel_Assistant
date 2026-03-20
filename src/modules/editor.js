@@ -70,11 +70,9 @@ export function loadCurrentEpisode() {
     updateStats();
 
     // 검토 결과 로드
-    if (ep.reviewResult && ep.reviewResult.data) {
-        // review 모듈에서 처리
-        if (window.displayReviewResult) {
-            window.displayReviewResult(ep.reviewResult.data);
-        }
+    if (ep.reviewResult) {
+        els.aiResult.textContent = ep.reviewResult;
+        els.aiResult.className = 'result-content';
     } else {
         els.aiResult.textContent = 'AI 검토 결과가 여기 표시됩니다.';
         els.aiResult.className = 'result-content';
