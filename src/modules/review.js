@@ -3,6 +3,7 @@ import { getCoreText } from './core-settings.js';
 import { getCharactersText } from './characters.js';
 import { getWorldText } from './world.js';
 import { CLAUDE_CONFIG } from '../utils/constants.js';
+import { autoSaveLocal } from '../core/storage.js';
 import { addUsage, calculateCost, resetUsage, updateUsageDisplay } from '../utils/api-usage.js';
 import { getAnthropicApiUrl, createApiRequestOptions, getApiErrorMessage } from '../utils/api-helper.js';
 import { state } from '../core/state.js';
@@ -213,6 +214,7 @@ ${content}
             const epIdx = state.currentEpisodeIndex;
             if (state.project.volumes[vol]?.episodes[epIdx]) {
                 state.project.volumes[vol].episodes[epIdx].reviewResult = reviewResult;
+                autoSaveLocal();
             }
 
             clearInterval(timerInterval);
