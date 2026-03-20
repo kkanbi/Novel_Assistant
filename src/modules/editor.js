@@ -2,6 +2,7 @@
 import { state } from '../core/state.js';
 import { autoSaveLocal } from '../core/storage.js';
 import { calculateStats } from '../utils/helpers.js';
+import { renderReviewResult } from './review.js';
 
 let els = {};
 
@@ -70,13 +71,7 @@ export function loadCurrentEpisode() {
     updateStats();
 
     // 검토 결과 로드
-    if (ep.reviewResult) {
-        els.aiResult.textContent = ep.reviewResult;
-        els.aiResult.className = 'result-content';
-    } else {
-        els.aiResult.textContent = 'AI 검토 결과가 여기 표시됩니다.';
-        els.aiResult.className = 'result-content';
-    }
+    renderReviewResult(els.aiResult, ep.reviewResult || '');
 }
 
 /**

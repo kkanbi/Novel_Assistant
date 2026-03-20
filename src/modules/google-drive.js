@@ -189,7 +189,7 @@ async function ensureFolder() {
             fields: 'files(id, name)'
         });
 
-        if (response.result.files.length > 0) {
+        if (response.result?.files?.length > 0) {
             folderId = response.result.files[0].id;
         } else {
             const createResponse = await gapi.client.drive.files.create({

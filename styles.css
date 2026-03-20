@@ -2078,11 +2078,11 @@ body {
     line-height: 1.9;
     color: transparent;
     pointer-events: none;
-    overflow-y: auto;
+    overflow: hidden;
     white-space: pre-wrap;
     word-wrap: break-word;
     box-sizing: border-box;
-    z-index: 3;
+    z-index: 1;
 }
 
 .editor {

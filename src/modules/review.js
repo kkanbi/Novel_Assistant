@@ -220,8 +220,7 @@ ${content}
             clearInterval(timerInterval);
             if (btnAiCheck) btnAiCheck.disabled = false;
 
-            els.aiResult.textContent = reviewResult;
-            els.aiResult.className = 'result-content';
+            renderReviewResult(els.aiResult, reviewResult);
 
             document.getElementById('estimatedCost').textContent = `$${cost.toFixed(4)}`;
             return; // 성공 → 루프 종료
@@ -250,6 +249,49 @@ ${content}
 
     els.aiResult.textContent = errorMessage;
     els.aiResult.className = 'result-content error';
+}
+
+/**
+ * 검토 결과 마크다운을 HTML로 렌더링
+ */
+export function renderReviewResult(container, text) {
+    if (!text) {
+        container.textContent = 'AI 검토 결과가 여기 표시됩니다.';
+        container.className = 'result-content';
+        return;
+    }
+
+    const lines = text.split('\n');
+    let html = '';
+    let inSection = false;
+
+    lines.forEach(line => {
+        if (line.startsWith('## ')) {
+            if (inSection) html += '</div>';
+            html += `<div class="review-section"><h4>${escapeHtml(line.slice(3))}</h4>`;
+            inSection = true;
+        } else if (line.startsWith('### ')) {
+            html += `<div class="review-line" style="font-weight:600;margin:4px 0 2px;">${escapeHtml(line.slice(4))}</div>`;
+        } else if (line.startsWith('- ')) {
+            html += `<div class="review-card clickable">${escapeHtml(line.slice(2))}</div>`;
+        } else if (line.trim()) {
+            html += `<div class="review-line">${escapeHtml(line)}</div>`;
+        }
+    });
+
+    if (inSection) html += '</div>';
+
+    container.innerHTML = html;
+    container.className = 'result-content';
+
+    // 카드 클릭 → applied(취소선) 토글
+    container.querySelectorAll('.review-card.clickable').forEach(card => {
+        card.addEventListener('click', () => card.classList.toggle('applied'));
+    });
+}
+
+function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // estimateCost와 updateUsageDisplay는 api-usage.js로 이동됨
