@@ -163,7 +163,7 @@ ${content}
     const requestOptions = createApiRequestOptions(claudeApiKey, payload);
 
     const MAX_RETRIES = 3;
-    const TIMEOUT_MS = 60000;
+    const TIMEOUT_MS = 120000;
     let lastError = null;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
