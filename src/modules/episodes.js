@@ -63,7 +63,7 @@ export function updateEpisodesList() {
             <span class="episode-number">${ep.number}화</span>
             <div class="episode-info">
                 <div class="episode-title ${ep.title ? '' : 'empty'}">${ep.title || '제목 없음'}</div>
-                <div class="episode-chars">${ep.charCount.toLocaleString()}자</div>
+                <div class="episode-chars">${ep.content.length.toLocaleString()} / ${ep.charCount.toLocaleString()}자</div>
             </div>
             <button class="episode-delete" title="삭제">×</button>
         `;
