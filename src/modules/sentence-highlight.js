@@ -111,13 +111,19 @@ function applyHighlight(editor) {
 
     let html;
     if (problems.length > 0) {
-        // 검토결과 기반: 타입별 색상으로 하이라이트
-        html = escapeHtml(text);
-        problems.forEach(({ text: problem, type }) => {
-            const escaped = escapeHtml(problem);
-            const regex = new RegExp(escapeRegex(escaped), 'g');
-            html = html.replace(regex, `<span class="review-problem-${type}">${escaped}</span>`);
-        });
+        // 줄 단위로 처리 — span이 줄바꿈을 넘어 이상한 위치에 생기지 않도록
+        html = text.split('\n').map(line => {
+            let lineHtml = escapeHtml(line);
+            problems.forEach(({ text: problem, type }) => {
+                if (problem.includes('\n')) return;
+                const escaped = escapeHtml(problem);
+                lineHtml = lineHtml.replace(
+                    new RegExp(escapeRegex(escaped), 'g'),
+                    `<span class="review-problem-${type}">${escaped}</span>`
+                );
+            });
+            return lineHtml;
+        }).join('\n');
     } else {
         // 검토결과 있는데 파싱 실패(구형식 등) → 노란 폴백 대신 무하이라이트
         const vol = state.project.currentVolume;

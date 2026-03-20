@@ -333,25 +333,24 @@ export function renderReviewResult(container, text) {
         line.addEventListener('click', () => scrollToText(line.dataset.original));
     });
 
-    // 카드 클릭: 자동수정 or 본문 이동 → applied 표시
+    // 카드 클릭: 매 클릭마다 스크롤 + 처음 클릭 시 자동수정
     container.querySelectorAll('.review-card.clickable').forEach(card => {
         card.addEventListener('click', () => {
-            if (card.classList.contains('applied')) {
-                card.classList.remove('applied');
-                return;
-            }
             const original = card.dataset.original;
             const correction = card.dataset.correction;
+            const isApplied = card.classList.contains('applied');
 
-            if (original) {
-                if (correction) {
-                    const success = replaceEditorText(original, correction);
-                    if (!success) scrollToText(original); // 교체 실패 시 스크롤만
-                } else {
-                    scrollToText(original);
-                }
+            if (!isApplied && original && correction) {
+                // 첫 클릭: 자동수정 시도
+                const success = replaceEditorText(original, correction);
+                if (!success) scrollToText(original); // 이미 수정됐거나 없으면 스크롤만
+            } else if (original) {
+                // 이후 클릭: 해당 텍스트로 스크롤 (원문 없으면 수정안으로)
+                const found = scrollToText(original);
+                if (!found && correction) scrollToText(correction);
             }
-            card.classList.add('applied');
+
+            card.classList.toggle('applied');
         });
     });
 }

@@ -125,7 +125,7 @@ export function scrollToText(searchText) {
     const content = els.episodeContent.value;
     const index = content.indexOf(searchText);
 
-    if (index === -1) return;
+    if (index === -1) return false;
 
     // 텍스트 선택
     els.episodeContent.focus();
@@ -157,4 +157,5 @@ export function scrollToText(searchText) {
     const scrollPosition = Math.max(0, cursorTopPosition - (textareaHeight / 2));
 
     els.episodeContent.scrollTop = scrollPosition;
+    return true;
 }
