@@ -73,7 +73,6 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Headers', 'Content-Type, x-api-key, anthropic-version')
 
     def log_message(self, format, *args):
-        # /api/claude 요청만 로그 출력, 정적 파일은 생략
         if '/api/claude' in (args[0] if args else ''):
             super().log_message(format, *args)
 
