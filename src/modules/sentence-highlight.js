@@ -35,9 +35,18 @@ function handleEditorInput(e) {
     applyHighlight(e.target);
 }
 
+/** 섹션 이름 → 타입 변환 (review.js와 동일) */
+function getSectionType(name) {
+    if (name.includes('맞춤법') || name.includes('띄어쓰기')) return 'spelling';
+    if (name.includes('어색') || name.includes('표현')) return 'awkward';
+    if (name.includes('일관성') || name.includes('설정')) return 'consistency';
+    if (name.includes('반복')) return 'repetition';
+    if (name.includes('흐름') || name.includes('연결')) return 'flow';
+    return 'default';
+}
+
 /**
- * 검토 결과에서 문제 텍스트(원문) 목록 추출
- * 패턴: '원문' → '수정안'  또는  '원문'
+ * 검토 결과에서 { text, type } 목록 추출
  */
 function getProblematicTexts() {
     const vol = state.project.currentVolume;
@@ -45,21 +54,29 @@ function getProblematicTexts() {
     const ep = state.project.volumes?.[vol]?.episodes?.[epIdx];
     if (!ep?.reviewResult) return [];
 
-    const problems = new Set();
+    const problems = [];
+    const seen = new Set();
+    let currentType = 'default';
+
     ep.reviewResult.split('\n').forEach(line => {
-        if (!line.startsWith('- ')) return;
-        // '원문' → '수정안' 패턴에서 원문만 추출
-        const arrowMatch = line.match(/'([^']+)'\s*→/);
-        if (arrowMatch) {
-            problems.add(arrowMatch[1]);
-            return;
-        }
-        // 그 외 따옴표 안의 텍스트 추출
-        for (const m of line.matchAll(/'([^']+)'/g)) {
-            problems.add(m[1]);
+        if (line.startsWith('## ')) {
+            currentType = getSectionType(line.slice(3));
+        } else if (line.startsWith('- ')) {
+            const arrowMatch = line.match(/'([^']+)'\s*→/);
+            if (arrowMatch && !seen.has(arrowMatch[1]) && arrowMatch[1].length >= 2) {
+                seen.add(arrowMatch[1]);
+                problems.push({ text: arrowMatch[1], type: currentType });
+                return;
+            }
+            for (const m of line.matchAll(/'([^']+)'/g)) {
+                if (!seen.has(m[1]) && m[1].length >= 2) {
+                    seen.add(m[1]);
+                    problems.push({ text: m[1], type: currentType });
+                }
+            }
         }
     });
-    return [...problems].filter(p => p.length >= 2);
+    return problems;
 }
 
 function applyHighlight(editor) {
@@ -76,12 +93,12 @@ function applyHighlight(editor) {
 
     let html;
     if (problems.length > 0) {
-        // 검토결과 기반: 문제 텍스트를 빨간색으로 하이라이트
+        // 검토결과 기반: 타입별 색상으로 하이라이트
         html = escapeHtml(text);
-        problems.forEach(problem => {
+        problems.forEach(({ text: problem, type }) => {
             const escaped = escapeHtml(problem);
             const regex = new RegExp(escapeRegex(escaped), 'g');
-            html = html.replace(regex, `<span class="review-problem">${escaped}</span>`);
+            html = html.replace(regex, `<span class="review-problem-${type}">${escaped}</span>`);
         });
     } else {
         // 폴백: 문장 길이 기반 하이라이트 (한국어 기준 조정)

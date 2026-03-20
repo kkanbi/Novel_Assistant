@@ -116,18 +116,12 @@ ${content}
 각 검토 항목별로 다음과 같이 작성해주세요:
 
 ## [검토 항목명]
+- '원문 텍스트' → '수정 텍스트': 수정 이유
+- '원문 텍스트': 문제 설명 (단순 교체가 어려운 경우)
 
-### 발견된 문제점:
-- 문제 1: [구체적인 설명]
-- 문제 2: [구체적인 설명]
-...
+문제가 없는 항목은 "## [검토 항목명]" 아래에 "양호함"으로 표시해주세요.
 
-### 수정 제안:
-- 제안 1: [구체적인 수정안]
-- 제안 2: [구체적인 수정안]
-...
-
-문제가 없는 항목은 "양호함"으로 표시해주세요.`;
+**중요**: 원문은 반드시 소설에서 실제로 등장하는 텍스트를 정확히 작은따옴표(')로 인용하고, 수정안도 작은따옴표(')로 표시해주세요.`;
 
     // 검토 버튼 비활성화
     const btnAiCheck = document.getElementById('btnAiCheck');
@@ -252,6 +246,16 @@ ${content}
     els.aiResult.className = 'result-content error';
 }
 
+/** 섹션 이름 → 타입 변환 */
+function getSectionType(name) {
+    if (name.includes('맞춤법') || name.includes('띄어쓰기')) return 'spelling';
+    if (name.includes('어색') || name.includes('표현')) return 'awkward';
+    if (name.includes('일관성') || name.includes('설정')) return 'consistency';
+    if (name.includes('반복')) return 'repetition';
+    if (name.includes('흐름') || name.includes('연결')) return 'flow';
+    return 'default';
+}
+
 /**
  * 카드 텍스트에서 원문/수정안 추출
  * 패턴: '원문' → '수정안'  또는  '원문'
@@ -281,23 +285,25 @@ export function renderReviewResult(container, text) {
     const lines = text.split('\n');
     let html = '';
     let inSection = false;
+    let currentType = 'default';
 
     lines.forEach(line => {
         if (line.startsWith('## ')) {
             if (inSection) html += '</div>';
-            html += `<div class="review-section"><h4>${escapeHtml(line.slice(3))}</h4>`;
+            currentType = getSectionType(line.slice(3));
+            html += `<div class="review-section"><h4 class="type-${currentType}">${escapeHtml(line.slice(3))}</h4>`;
             inSection = true;
         } else if (line.startsWith('### ')) {
             html += `<div class="review-line" style="font-weight:600;margin:4px 0 2px;">${escapeHtml(line.slice(4))}</div>`;
         } else if (line.startsWith('- ')) {
             const cardText = line.slice(2);
             const parsed = parseCardText(cardText);
-            let dataAttrs = '';
+            let dataAttrs = ` data-type="${currentType}"`;
             if (parsed?.original) {
                 dataAttrs += ` data-original="${escapeAttr(parsed.original)}"`;
                 if (parsed.correction) dataAttrs += ` data-correction="${escapeAttr(parsed.correction)}"`;
             }
-            html += `<div class="review-card clickable"${dataAttrs}>${escapeHtml(cardText)}</div>`;
+            html += `<div class="review-card clickable type-${currentType}"${dataAttrs}>${escapeHtml(cardText)}</div>`;
         } else if (line.trim()) {
             html += `<div class="review-line">${escapeHtml(line)}</div>`;
         }
@@ -318,14 +324,13 @@ export function renderReviewResult(container, text) {
             const original = card.dataset.original;
             const correction = card.dataset.correction;
 
-            if (original && correction) {
-                const success = replaceEditorText(original, correction);
-                if (success) {
-                    card.classList.add('applied');
-                    return;
+            if (original) {
+                if (correction) {
+                    const success = replaceEditorText(original, correction);
+                    if (!success) scrollToText(original); // 교체 실패 시 스크롤만
+                } else {
+                    scrollToText(original);
                 }
-            } else if (original) {
-                scrollToText(original);
             }
             card.classList.add('applied');
         });
