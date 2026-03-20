@@ -86,7 +86,7 @@ function getProblematicTexts() {
         }
         // 구형식: 모든 줄에서 `백틱` 인용 추출 (최대 30자)
         else {
-            for (const m of line.matchAll(/`([^`]{2,30})`/g)) {
+            for (const m of line.matchAll(/`([^`]{5,30})`/g)) {
                 if (!seen.has(m[1])) {
                     seen.add(m[1]);
                     problems.push({ text: m[1], type: currentType });
@@ -107,18 +107,23 @@ function applyHighlight(editor) {
         editor.parentElement.appendChild(highlightOverlay);
     }
 
+    // 스크롤바 너비만큼 오른쪽을 좁혀 textarea와 정확히 겹치도록
+    const scrollbarWidth = editor.offsetWidth - editor.clientWidth;
+    highlightOverlay.style.right = scrollbarWidth + 'px';
+
     const problems = getProblematicTexts();
 
     let html;
     if (problems.length > 0) {
         // 줄 단위로 처리 — span이 줄바꿈을 넘어 이상한 위치에 생기지 않도록
+        // 'g' 플래그 제거 → 줄당 첫 번째 일치만 하이라이트 (과잉 매칭 방지)
         html = text.split('\n').map(line => {
             let lineHtml = escapeHtml(line);
             problems.forEach(({ text: problem, type }) => {
                 if (problem.includes('\n')) return;
                 const escaped = escapeHtml(problem);
                 lineHtml = lineHtml.replace(
-                    new RegExp(escapeRegex(escaped), 'g'),
+                    new RegExp(escapeRegex(escaped)),
                     `<span class="review-problem-${type}">${escaped}</span>`
                 );
             });
