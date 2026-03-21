@@ -103,7 +103,12 @@ export function initReview(elements) {
 
     // 아코디언 토글
     document.getElementById('reviewAccordionToggle')?.addEventListener('click', () => {
-        document.getElementById('reviewSettingsAccordion')?.classList.toggle('collapsed');
+        const body = document.getElementById('reviewAccordionBody');
+        const icon = document.querySelector('#reviewAccordionToggle .review-accordion-icon');
+        if (!body) return;
+        const isCollapsed = body.style.display === 'none';
+        body.style.display = isCollapsed ? '' : 'none';
+        if (icon) icon.style.transform = isCollapsed ? '' : 'rotate(-90deg)';
     });
 }
 
