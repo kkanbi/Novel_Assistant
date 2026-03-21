@@ -1,5 +1,71 @@
 # 소설 작성기 변경 이력
 
+## [v0.4.0] - 2026-03-21 🔍
+
+### ✨ 새 기능
+- **검토 결과 하이라이트**: 하이라이트 버튼 클릭 시 AI 검토 결과에 언급된 문장을 본문에 색상으로 표시
+  - 검토 항목 유형별 색상 구분 (맞춤법/어색한표현/일관성/반복/흐름)
+  - 검토 결과 없을 때는 문장 길이 기반 폴백 하이라이트
+- **검토 카드 클릭 자동수정**: 검토 결과 카드 클릭 시 원문→수정안 자동 치환 + 해당 위치로 스크롤
+  - 첫 클릭: 자동수정 + 취소선(완료 표시)
+  - 이후 클릭: 해당 텍스트 위치로 스크롤
+- **검토 결과 마크다운 렌더링**: `## 섹션`, `[N. 항목명]` 등 AI 출력을 색상 카드 UI로 렌더링
+- **검토 결과 Google Drive 저장**: 저장 시 reviewResult 포함, 불러오기 시 검토 결과도 복원
+- **글자수 이중 표시**: 회차 목록에 `공백포함 / 공백제외`자 형태로 두 가지 수치 동시 표시
+
+### 🐛 버그 수정
+
+#### AI 검토 타임아웃 (AbortError)
+- **증상**: AI 검토 요청이 항상 실패, 콘솔에 `AbortError: signal is aborted without reason`
+- **원인**: `proxy_server.py`의 `urllib.request.urlopen()`에 timeout 미설정 → 시스템 기본값(약 9초)으로 연결 끊김
+- **해결**: `urlopen(req, timeout=120)` 추가, 클라이언트 `TIMEOUT_MS`도 120000ms로 상향
+
+#### 하이라이트 모두 노란색
+- **증상**: 하이라이트 버튼 눌러도 전부 노란색 (타입 구분 없음)
+- **원인 1**: 구형식 검토 결과(`[N. 항목명]`, `` `백틱` ``)를 파서가 인식 못 함
+- **원인 2**: 검토 결과 있어도 파싱 실패 시 문장길이 폴백(노란색)이 동작
+- **해결**: 구형식 헤더 정규식 추가, 검토 결과 있을 때 폴백 비활성화
+
+#### 하이라이트 이상한 위치에 표시
+- **증상**: 텍스트 위가 아닌 줄 오른쪽 끝에 색상 사각형이 나타남, 큰 영역이 주황색으로 덮임
+- **원인 1**: `\n`을 포함한 span이 렌더링되며 오버레이 위치가 어긋남
+- **원인 2**: 텍스트 스크롤바로 인해 textarea 실제 콘텐츠 너비 < 오버레이 너비
+- **원인 3**: `'g'` 플래그로 한 줄 내 모든 단어에 매칭 → 과잉 하이라이트
+- **원인 4**: 구형식 백틱 추출 최소 2자 → 짧은 단어 오매칭
+- **해결**:
+  - 줄 단위 처리(`split('\n')`)로 span이 줄바꿈 넘지 않도록 수정
+  - `highlightOverlay.style.right = (editor.offsetWidth - editor.clientWidth) + 'px'`로 스크롤바 너비 보정
+  - `'g'` 플래그 제거 → 줄당 첫 번째 일치만 하이라이트
+  - 백틱 추출 최소 길이 2자 → 5자
+
+#### 검토 카드 두 번째 이후 클릭 무반응
+- **증상**: 카드 첫 클릭은 파란 하이라이트+스크롤 동작, 두 번째/세 번째 클릭 시 아무 반응 없음
+- **원인**: `applied` 상태에서 클릭 핸들러가 `return`으로 조기 종료
+- **해결**: `applied` 여부와 관계없이 항상 `scrollToText()` 호출
+
+#### Google Drive 콘솔 에러
+- **증상**: 로그인 전 접근 시 `Cannot read properties of undefined (reading 'files')`
+- **원인**: `response.result.files` 접근 시 `result`가 undefined
+- **해결**: `response.result?.files?.length > 0` 옵셔널 체이닝 적용
+
+### 🔧 내부 개선
+- `review.js` ↔ `editor.js` 상호 import (런타임 호출이므로 순환 참조 안전)
+- `scrollToText()` 반환값 bool로 변경 (성공 여부 체크)
+- `replaceEditorText()` 신규 export: 원문 치환 후 저장 이벤트 자동 발생
+- `getSectionType()`, `parseCardText()`, `escapeAttr()` 헬퍼 추가 (review.js)
+- `escapeRegex()` 헬퍼 추가 (sentence-highlight.js)
+
+### 📁 수정 파일
+- `proxy_server.py` — urlopen timeout 추가
+- `src/modules/review.js` — 마크다운 렌더링, 카드 클릭 핸들러, 자동수정
+- `src/modules/editor.js` — replaceEditorText, scrollToText 개선, reviewResult 렌더링
+- `src/modules/sentence-highlight.js` — 검토결과 기반 하이라이트, 오버레이 위치 보정
+- `src/modules/google-drive.js` — optional chaining 에러 수정
+- `src/modules/episodes.js` — 글자수 공백포함/제외 이중 표시
+- `styles.css` — 타입별 하이라이트 색상 클래스, 검토 카드 색상 구분
+
+---
+
 ## [v0.3.1] - 2026-01-04 🤖
 
 ### ✨ 새 기능
