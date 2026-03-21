@@ -24,6 +24,15 @@ export const CLAUDE_CONFIG = {
     WORKER_URL: ''  // 예: 'https://novel-proxy.your-name.workers.dev'
 };
 
+export const GEMINI_CONFIG = {
+    MODEL: 'gemini-2.5-flash',
+    MAX_TOKENS: 8192,
+    PRICING: {
+        INPUT_PER_MILLION: 0.075,
+        OUTPUT_PER_MILLION: 0.30
+    }
+};
+
 export const UI_CONFIG = {
     DEBOUNCE_DEFAULT: 1000,
     CHARS_PER_PAGE: 200,

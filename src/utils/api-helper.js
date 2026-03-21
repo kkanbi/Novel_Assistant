@@ -1,5 +1,5 @@
-// api-helper.js - Claude API 호출 헬퍼 함수
-import { CLAUDE_CONFIG } from './constants.js';
+// api-helper.js - Claude / Gemini API 호출 헬퍼 함수
+import { CLAUDE_CONFIG, GEMINI_CONFIG } from './constants.js';
 
 export function getAnthropicApiUrl() {
     const baseUrl = 'https://api.anthropic.com/v1/messages';
@@ -34,6 +34,35 @@ export function createApiRequestOptions(apiKey, payload) {
         body: JSON.stringify(payload)
     };
 }
+
+// ─── Gemini 헬퍼 ───────────────────────────────────────────────
+
+export function getGeminiApiUrl() {
+    return `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_CONFIG.MODEL}:generateContent`;
+}
+
+export function createGeminiRequestOptions(apiKey, prompt) {
+    return {
+        method: 'POST',
+        mode: 'cors',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey
+        },
+        body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: GEMINI_CONFIG.MAX_TOKENS }
+        })
+    };
+}
+
+export function calculateGeminiCost(inputTokens, outputTokens) {
+    const inputCost = (inputTokens / 1_000_000) * GEMINI_CONFIG.PRICING.INPUT_PER_MILLION;
+    const outputCost = (outputTokens / 1_000_000) * GEMINI_CONFIG.PRICING.OUTPUT_PER_MILLION;
+    return inputCost + outputCost;
+}
+
+// ────────────────────────────────────────────────────────────────
 
 export function getApiErrorMessage(error) {
     let errorMessage = `❌ API 호출 실패: ${error.message}\n\n`;

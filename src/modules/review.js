@@ -6,16 +6,33 @@ import { getWorldText } from './world.js';
 import { CLAUDE_CONFIG } from '../utils/constants.js';
 import { autoSaveLocal } from '../core/storage.js';
 import { addUsage, calculateCost, resetUsage, updateUsageDisplay } from '../utils/api-usage.js';
-import { getAnthropicApiUrl, createApiRequestOptions, getApiErrorMessage } from '../utils/api-helper.js';
+import {
+    getAnthropicApiUrl, createApiRequestOptions, getApiErrorMessage,
+    getGeminiApiUrl, createGeminiRequestOptions, calculateGeminiCost
+} from '../utils/api-helper.js';
 import { state } from '../core/state.js';
 
 let claudeApiKey = '';
+let geminiApiKey = '';
 let els = {};
 
 export function initReview(elements) {
     els = elements;
 
-    // API 키 입력
+    // 모델 선택 → API 키 입력창 전환
+    const modelSelect = document.getElementById('aiModelSelect');
+    const claudeKeyRow = document.getElementById('claudeKeyRow');
+    const geminiKeyRow = document.getElementById('geminiKeyRow');
+
+    function updateModelUI() {
+        const model = modelSelect?.value;
+        if (claudeKeyRow) claudeKeyRow.style.display = model === 'gemini' ? 'none' : '';
+        if (geminiKeyRow) geminiKeyRow.style.display = model === 'gemini' ? '' : 'none';
+    }
+    modelSelect?.addEventListener('change', updateModelUI);
+    updateModelUI();
+
+    // Claude API 키 입력
     els.apiKey.addEventListener('input', () => {
         claudeApiKey = els.apiKey.value.trim();
         if (claudeApiKey.startsWith('sk-ant-')) {
@@ -27,11 +44,35 @@ export function initReview(elements) {
         }
     });
 
+    // Gemini API 키 입력
+    document.getElementById('geminiApiKey')?.addEventListener('input', (e) => {
+        geminiApiKey = e.target.value.trim();
+        const geminiStatus = document.getElementById('geminiApiStatus');
+        if (geminiStatus) {
+            if (geminiApiKey.length > 10) {
+                geminiStatus.textContent = '✓ 설정됨';
+                geminiStatus.className = 'api-status connected';
+            } else {
+                geminiStatus.textContent = 'API 키를 입력하세요';
+                geminiStatus.className = 'api-status';
+            }
+        }
+    });
+
     // AI 검토 버튼
     document.getElementById('btnAiCheck')?.addEventListener('click', async () => {
-        if (!claudeApiKey || !claudeApiKey.startsWith('sk-ant-')) {
-            alert('먼저 Claude API 키를 입력해주세요.');
-            return;
+        const model = document.getElementById('aiModelSelect')?.value || 'claude';
+
+        if (model === 'gemini') {
+            if (!geminiApiKey || geminiApiKey.length < 10) {
+                alert('먼저 Gemini API 키를 입력해주세요.');
+                return;
+            }
+        } else {
+            if (!claudeApiKey || !claudeApiKey.startsWith('sk-ant-')) {
+                alert('먼저 Claude API 키를 입력해주세요.');
+                return;
+            }
         }
 
         const content = els.episodeContent.value.trim();
@@ -40,7 +81,7 @@ export function initReview(elements) {
             return;
         }
 
-        await performAIReview(content);
+        await performAIReview(content, model);
     });
 
     // Reset 버튼
@@ -63,8 +104,13 @@ export function initReview(elements) {
 
 /**
  * AI 검토 수행
+ * @param {string} content - 원고 텍스트
+ * @param {string} model - 'claude' | 'gemini'
  */
-async function performAIReview(content) {
+async function performAIReview(content, model = 'claude') {
+    // 자유질문 우선
+    const customQuestion = document.getElementById('customQuestion')?.value.trim();
+
     // 검토 옵션 가져오기
     const checkSpelling = document.getElementById('checkSpelling').checked;
     const checkAwkward = document.getElementById('checkAwkward').checked;
@@ -72,19 +118,13 @@ async function performAIReview(content) {
     const checkRepetition = document.getElementById('checkRepetition').checked;
     const checkFlow = document.getElementById('checkFlow').checked;
 
-    // 최소 하나는 선택되어야 함
-    if (!checkSpelling && !checkAwkward && !checkConsistency && !checkRepetition && !checkFlow) {
-        alert('최소 하나의 검토 옵션을 선택해주세요.');
+    const hasChecks = checkSpelling || checkAwkward || checkConsistency || checkRepetition || checkFlow;
+
+    // 자유질문도 없고 체크박스도 없으면 경고
+    if (!customQuestion && !hasChecks) {
+        alert('최소 하나의 검토 옵션을 선택하거나 자유 질문을 입력해주세요.');
         return;
     }
-
-    // 검토 항목 텍스트 생성
-    const reviewItems = [];
-    if (checkSpelling) reviewItems.push('맞춤법 및 띄어쓰기');
-    if (checkAwkward) reviewItems.push('어색한 문장 표현');
-    if (checkConsistency) reviewItems.push('설정 일관성');
-    if (checkRepetition) reviewItems.push('반복되는 표현');
-    if (checkFlow) reviewItems.push('문장 흐름 및 연결');
 
     // 작품 컨텍스트 수집
     const coreText = getCoreText();
@@ -92,7 +132,7 @@ async function performAIReview(content) {
     const worldText = getWorldText();
 
     // 프롬프트 구성
-    const prompt = `당신은 전문 소설 편집자입니다. 다음 소설 원고를 검토해주세요.
+    let prompt = `당신은 전문 소설 편집자입니다. 다음 소설 원고를 검토해주세요.
 
 **작품 정보:**
 ${coreText}
@@ -103,11 +143,25 @@ ${charactersText}
 **세계관:**
 ${worldText}
 
-**검토 항목:**
-${reviewItems.map((item, i) => `${i + 1}. ${item}`).join('\n')}
-
 **원고:**
 ${content}
+
+`;
+
+    if (customQuestion) {
+        // 자유질문 모드
+        prompt += `**질문/요청사항:**\n${customQuestion}`;
+    } else {
+        // 체크박스 모드
+        const reviewItems = [];
+        if (checkSpelling) reviewItems.push('맞춤법 및 띄어쓰기');
+        if (checkAwkward) reviewItems.push('어색한 문장 표현');
+        if (checkConsistency) reviewItems.push('설정 일관성');
+        if (checkRepetition) reviewItems.push('반복되는 표현');
+        if (checkFlow) reviewItems.push('문장 흐름 및 연결');
+
+        prompt += `**검토 항목:**
+${reviewItems.map((item, i) => `${i + 1}. ${item}`).join('\n')}
 
 **검토 요청사항:**
 위의 검토 항목들을 중심으로 원고를 분석하고, 구체적인 피드백을 제공해주세요.
@@ -122,6 +176,7 @@ ${content}
 문제가 없는 항목은 "## [검토 항목명]" 아래에 "양호함"으로 표시해주세요.
 
 **중요**: 원문은 반드시 소설에서 실제로 등장하는 텍스트를 정확히 작은따옴표(')로 인용하고, 수정안도 작은따옴표(')로 표시해주세요.`;
+    }
 
     // 검토 버튼 비활성화
     const btnAiCheck = document.getElementById('btnAiCheck');
@@ -145,17 +200,15 @@ ${content}
     }, 1000);
 
     // API 호출 준비
-    const payload = {
-        model: CLAUDE_CONFIG.MODEL,
-        max_tokens: 4000,
-        messages: [{
-            role: 'user',
-            content: prompt
-        }]
-    };
-
-    const apiUrl = getAnthropicApiUrl();
-    const requestOptions = createApiRequestOptions(claudeApiKey, payload);
+    const isGemini = model === 'gemini';
+    const apiUrl = isGemini ? getGeminiApiUrl() : getAnthropicApiUrl();
+    const requestOptions = isGemini
+        ? createGeminiRequestOptions(geminiApiKey, prompt)
+        : createApiRequestOptions(claudeApiKey, {
+            model: CLAUDE_CONFIG.MODEL,
+            max_tokens: 4000,
+            messages: [{ role: 'user', content: prompt }]
+        });
 
     const MAX_RETRIES = 3;
     const TIMEOUT_MS = 120000;
@@ -164,7 +217,7 @@ ${content}
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
             if (attempt > 1) {
-                const delayMs = Math.pow(2, attempt - 1) * 1000; // 2s, 4s
+                const delayMs = Math.pow(2, attempt - 1) * 1000;
                 elapsedSeconds = 0;
                 updateLoadingText(`⚠️ ${attempt - 1}번 응답 없음 — ${delayMs / 1000}초 후 재시도 중...`);
                 await new Promise(resolve => setTimeout(resolve, delayMs));
@@ -191,16 +244,25 @@ ${content}
             const result = await response.json();
             console.log('API Success Response:', result);
 
-            if (!result.content || !result.content[0] || !result.content[0].text) {
-                throw new Error('응답 형식이 올바르지 않습니다.');
+            let reviewResult, inputTokens, outputTokens, cost;
+
+            if (isGemini) {
+                if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    throw new Error('Gemini 응답 형식이 올바르지 않습니다.');
+                }
+                reviewResult = result.candidates[0].content.parts[0].text;
+                inputTokens = result.usageMetadata?.promptTokenCount || 0;
+                outputTokens = result.usageMetadata?.candidatesTokenCount || 0;
+                cost = calculateGeminiCost(inputTokens, outputTokens);
+            } else {
+                if (!result.content || !result.content[0] || !result.content[0].text) {
+                    throw new Error('응답 형식이 올바르지 않습니다.');
+                }
+                reviewResult = result.content[0].text;
+                inputTokens = result.usage.input_tokens;
+                outputTokens = result.usage.output_tokens;
+                cost = calculateCost(inputTokens, outputTokens);
             }
-
-            const reviewResult = result.content[0].text;
-
-            // 토큰 사용량 및 비용 계산
-            const inputTokens = result.usage.input_tokens;
-            const outputTokens = result.usage.output_tokens;
-            const cost = calculateCost(inputTokens, outputTokens);
 
             addUsage('review', cost, inputTokens, outputTokens);
 
