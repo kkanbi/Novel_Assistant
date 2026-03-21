@@ -100,6 +100,11 @@ export function initReview(elements) {
 
     // 초기 사용량 표시
     updateUsageDisplay();
+
+    // 아코디언 토글
+    document.getElementById('reviewAccordionToggle')?.addEventListener('click', () => {
+        document.getElementById('reviewSettingsAccordion')?.classList.toggle('collapsed');
+    });
 }
 
 /**
@@ -175,7 +180,9 @@ ${reviewItems.map((item, i) => `${i + 1}. ${item}`).join('\n')}
 
 문제가 없는 항목은 "## [검토 항목명]" 아래에 "양호함"으로 표시해주세요.
 
-**중요**: 원문은 반드시 소설에서 실제로 등장하는 텍스트를 정확히 작은따옴표(')로 인용하고, 수정안도 작은따옴표(')로 표시해주세요.`;
+**중요**: 원문은 반드시 소설에서 실제로 등장하는 텍스트를 정확히 작은따옴표(')로 인용하고, 수정안도 작은따옴표(')로 표시해주세요.
+
+**형식 준수**: 각 섹션 헤더는 반드시 "## 섹션명" 형식으로 시작해야 합니다. 예: "## 맞춤법 및 띄어쓰기"`;
     }
 
     // 검토 버튼 비활성화
@@ -355,6 +362,20 @@ export function renderReviewResult(container, text) {
             if (inSection) html += '</div>';
             currentType = getSectionType(line.slice(3));
             html += `<div class="review-section"><h4 class="type-${currentType}">${escapeHtml(line.slice(3))}</h4>`;
+            inSection = true;
+        } else if (/^\*\*[^*]+\*\*$/.test(line.trim())) {
+            // Gemini 응답 형식: **섹션명** (라인 전체가 bold)
+            if (inSection) html += '</div>';
+            const sectionName = line.trim().replace(/^\*\*/, '').replace(/\*\*$/, '');
+            currentType = getSectionType(sectionName);
+            html += `<div class="review-section"><h4 class="type-${currentType}">${escapeHtml(sectionName)}</h4>`;
+            inSection = true;
+        } else if (line.startsWith('### ') && getSectionType(line.slice(4)) !== 'default') {
+            // Gemini 응답 형식: ### 섹션명 (섹션명이 인식되는 경우)
+            if (inSection) html += '</div>';
+            const sectionName = line.slice(4);
+            currentType = getSectionType(sectionName);
+            html += `<div class="review-section"><h4 class="type-${currentType}">${escapeHtml(sectionName)}</h4>`;
             inSection = true;
         } else if (/^\[\d+\.\s/.test(line) && line.endsWith(']')) {
             // 구형식 섹션 헤더: [3. 설정 일관성]
