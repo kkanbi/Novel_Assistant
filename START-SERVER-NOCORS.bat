@@ -12,6 +12,7 @@ start /min python proxy_server.py
 timeout /t 2 /nobreak > nul
 
 echo http://localhost:8080 에 접속하세요.
+start http://localhost:8080
 
 echo.
 echo ====================================

@@ -317,53 +317,78 @@
 
             <!-- 퇴고 탭 -->
             <div class="main-tab-content" data-main-content="review">
-                <div class="panel-header">Claude API</div>
-                <div class="api-panel">
-                    <div class="api-input-group">
-                        <label class="api-label">API Key</label>
-                        <input type="password" class="api-input" id="apiKey" placeholder="sk-ant-...">
-                        <div class="api-status" id="apiStatus">API 키를 입력하세요</div>
+                <!-- AI 설정 아코디언 -->
+                <div class="review-accordion" id="reviewSettingsAccordion">
+                    <div class="review-accordion-header" id="reviewAccordionToggle">
+                        <span>⚙️ AI 모델 설정 / 검토 옵션</span>
+                        <span class="review-accordion-icon">▼</span>
                     </div>
-                </div>
+                    <div class="review-accordion-body" id="reviewAccordionBody">
+                        <div class="api-panel">
+                            <div class="api-input-group">
+                                <label class="api-label">모델</label>
+                                <select class="api-input" id="aiModelSelect" style="cursor:pointer;">
+                                    <option value="claude">Claude (Sonnet 4.6)</option>
+                                    <option value="gemini">Gemini 2.5 Flash</option>
+                                </select>
+                            </div>
+                            <div class="api-input-group" id="claudeKeyRow">
+                                <label class="api-label">Claude Key</label>
+                                <input type="password" class="api-input" id="apiKey" placeholder="sk-ant-...">
+                                <div class="api-status" id="apiStatus">API 키를 입력하세요</div>
+                            </div>
+                            <div class="api-input-group" id="geminiKeyRow" style="display:none;">
+                                <label class="api-label">Gemini Key</label>
+                                <input type="password" class="api-input" id="geminiApiKey" placeholder="AIza...">
+                                <div class="api-status" id="geminiApiStatus">API 키를 입력하세요</div>
+                            </div>
+                        </div>
 
-                <div class="panel-header">검토 옵션</div>
-                <div class="check-options-inline">
-                    <label class="check-option-inline">
-                        <input type="checkbox" id="checkSpelling" checked>
-                        <span>맞춤법</span>
-                    </label>
-                    <label class="check-option-inline">
-                        <input type="checkbox" id="checkAwkward" checked>
-                        <span>어색한 문장</span>
-                    </label>
-                    <label class="check-option-inline">
-                        <input type="checkbox" id="checkConsistency" checked>
-                        <span>설정 일관성</span>
-                    </label>
-                    <label class="check-option-inline">
-                        <input type="checkbox" id="checkRepetition">
-                        <span>반복 표현</span>
-                    </label>
-                    <label class="check-option-inline">
-                        <input type="checkbox" id="checkFlow">
-                        <span>문장 흐름</span>
-                    </label>
+                        <div class="panel-header review-subheader">검토 옵션</div>
+                        <div class="check-options-inline">
+                            <label class="check-option-inline">
+                                <input type="checkbox" id="checkSpelling" checked>
+                                <span>맞춤법</span>
+                            </label>
+                            <label class="check-option-inline">
+                                <input type="checkbox" id="checkAwkward" checked>
+                                <span>어색한 문장</span>
+                            </label>
+                            <label class="check-option-inline">
+                                <input type="checkbox" id="checkConsistency" checked>
+                                <span>설정 일관성</span>
+                            </label>
+                            <label class="check-option-inline">
+                                <input type="checkbox" id="checkRepetition">
+                                <span>반복 표현</span>
+                            </label>
+                            <label class="check-option-inline">
+                                <input type="checkbox" id="checkFlow">
+                                <span>문장 흐름</span>
+                            </label>
+                        </div>
+
+                        <div class="panel-header review-subheader">자유 질문 <span style="font-weight:400;font-size:11px;opacity:0.6;">(입력 시 체크박스 대신 사용)</span></div>
+                        <div style="padding: 10px 14px 14px;">
+                            <textarea id="customQuestion" class="api-input" rows="3" placeholder="예) 이 장면에서 주인공의 감정선이 자연스럽게 표현됐나요?" style="resize:vertical;width:100%;box-sizing:border-box;font-size:12px;padding:6px 8px;"></textarea>
+                        </div>
+
+                        <div class="usage-info">
+                            <div class="usage-row">
+                                <span>💰 이번 예상</span>
+                                <span id="estimatedCost">-</span>
+                            </div>
+                            <div class="usage-row">
+                                <span>📊 누적 사용</span>
+                                <span id="totalUsage">$0.00 (0회)</span>
+                            </div>
+                            <button class="btn-reset-usage" id="btnResetUsage" title="사용량 초기화">사용량 리셋</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="action-buttons">
                     <button class="btn btn-primary" id="btnAiCheck">🤖 검토 요청</button>
-                </div>
-
-                <div class="usage-info">
-                    <div class="usage-row">
-                        <span>💰 이번 예상</span>
-                        <span id="estimatedCost">-</span>
-                    </div>
-                    <div class="usage-row">
-                        <span>📊 누적 사용</span>
-                        <span id="totalUsage">$0.00 (0회)</span>
-                    </div>
-                    <button class="btn-reset-usage" id="btnResetUsage" title="사용량 초기화">사용량 리셋</button>
                 </div>
 
                 <div class="result-section">

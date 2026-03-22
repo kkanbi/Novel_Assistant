@@ -46,7 +46,7 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
         )
 
         try:
-            with urllib.request.urlopen(req) as resp:
+            with urllib.request.urlopen(req, timeout=120) as resp:
                 resp_body = resp.read()
                 self.send_response(resp.status)
                 self._send_cors_headers()

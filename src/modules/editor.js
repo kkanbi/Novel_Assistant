@@ -2,6 +2,7 @@
 import { state } from '../core/state.js';
 import { autoSaveLocal } from '../core/storage.js';
 import { calculateStats } from '../utils/helpers.js';
+import { renderReviewResult } from './review.js';
 
 let els = {};
 
@@ -70,15 +71,7 @@ export function loadCurrentEpisode() {
     updateStats();
 
     // 검토 결과 로드
-    if (ep.reviewResult && ep.reviewResult.data) {
-        // review 모듈에서 처리
-        if (window.displayReviewResult) {
-            window.displayReviewResult(ep.reviewResult.data);
-        }
-    } else {
-        els.aiResult.textContent = 'AI 검토 결과가 여기 표시됩니다.';
-        els.aiResult.className = 'result-content';
-    }
+    renderReviewResult(els.aiResult, ep.reviewResult || '');
 }
 
 /**
@@ -109,14 +102,30 @@ function getCurrentEpisode() {
 }
 
 /**
- * 텍스트 위치로 스크롤 (가운데 정렬)
- * @param {string} searchText
+ * 본문에서 텍스트 교체 후 중앙 스크롤
  */
+export function replaceEditorText(original, replacement) {
+    const content = els.episodeContent.value;
+    const index = content.indexOf(original);
+    if (index === -1) return false;
+
+    els.episodeContent.value =
+        content.substring(0, index) + replacement + content.substring(index + original.length);
+
+    handleContentChange();
+    autoSaveLocal();
+    // input 이벤트를 발생시켜 하이라이트 오버레이도 갱신
+    els.episodeContent.dispatchEvent(new Event('input'));
+    scrollToText(replacement);
+    return true;
+}
+
+
 export function scrollToText(searchText) {
     const content = els.episodeContent.value;
     const index = content.indexOf(searchText);
 
-    if (index === -1) return;
+    if (index === -1) return false;
 
     // 텍스트 선택
     els.episodeContent.focus();
@@ -148,4 +157,5 @@ export function scrollToText(searchText) {
     const scrollPosition = Math.max(0, cursorTopPosition - (textareaHeight / 2));
 
     els.episodeContent.scrollTop = scrollPosition;
+    return true;
 }

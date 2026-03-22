@@ -1101,11 +1101,54 @@ body {
     flex: 1;
 }
 
+/* 퇴고 설정 아코디언 */
+.review-accordion {
+    border-bottom: 1px solid var(--border);
+}
+
+.review-accordion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    cursor: pointer;
+    background: var(--bg-tertiary);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    user-select: none;
+    border-bottom: 1px solid var(--border);
+}
+
+.review-accordion-header:hover {
+    background: var(--border);
+}
+
+.review-accordion-icon {
+    font-size: 10px;
+    display: inline-block;
+    transition: transform 0.2s;
+}
+
+.review-accordion.collapsed .review-accordion-icon {
+    transform: rotate(-90deg);
+}
+
+.review-accordion.collapsed .review-accordion-body {
+    display: none;
+}
+
+.panel-header.review-subheader {
+    background: none;
+    border-bottom: 1px solid var(--border);
+    margin-top: 0;
+}
+
 .result-section {
-    flex: 1;
     display: flex;
     flex-direction: column;
-    min-height: 150px;
+    min-height: 0;
 }
 
 .result-header {
@@ -1119,12 +1162,13 @@ body {
 }
 
 .result-content {
-    flex: 1;
     padding: 14px;
     font-size: 13px;
     line-height: 1.7;
     overflow-y: auto;
     white-space: pre-wrap;
+    resize: vertical;
+    min-height: 250px;
 }
 
 .result-content.empty {
@@ -1307,9 +1351,18 @@ body {
     font-weight: 600;
     color: var(--accent);
     margin-bottom: 3px;
+    padding-left: 6px;
+    border-left: 3px solid var(--accent);
     padding-bottom: 1px;
     border-bottom: 1px solid var(--border);
 }
+
+/* 헤더 타입별 색상 */
+h4.type-spelling    { color: #e05050 !important; border-left-color: #e05050 !important; }
+h4.type-awkward     { color: #d4820a !important; border-left-color: #d4820a !important; }
+h4.type-consistency { color: #2e72d4 !important; border-left-color: #2e72d4 !important; }
+h4.type-repetition  { color: #8855cc !important; border-left-color: #8855cc !important; }
+h4.type-flow        { color: #1aaa82 !important; border-left-color: #1aaa82 !important; }
 
 .review-card {
     background: var(--bg-tertiary);
@@ -1328,6 +1381,14 @@ body {
     background: var(--bg-secondary);
     transform: translateX(2px);
 }
+
+/* 카드 타입별 왼쪽 테두리 색상 */
+.review-card.type-spelling    { border-left: 3px solid rgba(220,  50,  50, 0.7); padding-left: 7px; }
+.review-card.type-awkward     { border-left: 3px solid rgba(210, 130,   0, 0.7); padding-left: 7px; }
+.review-card.type-consistency { border-left: 3px solid rgba( 30, 100, 220, 0.7); padding-left: 7px; }
+.review-card.type-repetition  { border-left: 3px solid rgba(120,  80, 210, 0.7); padding-left: 7px; }
+.review-card.type-flow        { border-left: 3px solid rgba( 20, 170, 130, 0.7); padding-left: 7px; }
+.review-card.type-default     { border-left: 3px solid rgba(150, 150, 150, 0.5); padding-left: 7px; }
 
 .review-card.clickable.applied {
     opacity: 0.6;
@@ -2078,9 +2139,10 @@ body {
     line-height: 1.9;
     color: transparent;
     pointer-events: none;
-    overflow-y: auto;
+    overflow: hidden;
     white-space: pre-wrap;
     word-wrap: break-word;
+    box-sizing: border-box;
     z-index: 1;
 }
 
@@ -2100,6 +2162,14 @@ body {
     background: rgba(255, 235, 150, 0.2);
     color: transparent;
 }
+
+/* 검토 타입별 하이라이트 색상 */
+.review-problem-spelling    { background: rgba(255, 100, 100, 0.35); border-bottom: 2px solid rgba(220,  50,  50, 0.8); color: transparent; }
+.review-problem-awkward     { background: rgba(255, 170,  50, 0.35); border-bottom: 2px solid rgba(210, 130,   0, 0.8); color: transparent; }
+.review-problem-consistency { background: rgba( 80, 160, 255, 0.35); border-bottom: 2px solid rgba( 30, 100, 220, 0.8); color: transparent; }
+.review-problem-repetition  { background: rgba(180, 130, 255, 0.35); border-bottom: 2px solid rgba(120,  80, 210, 0.8); color: transparent; }
+.review-problem-flow        { background: rgba( 50, 220, 170, 0.35); border-bottom: 2px solid rgba( 20, 170, 130, 0.8); color: transparent; }
+.review-problem-default     { background: rgba(255, 100, 100, 0.35); border-bottom: 2px solid rgba(220,  50,  50, 0.8); color: transparent; }
 
 /* 포모도로 타이머 */
 .pomodoro-timer {
