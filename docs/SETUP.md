@@ -325,12 +325,10 @@ https://kkanbi.github.io/SideProject_Plan/Novel/index.html
 
 ---
 
-## 📚 관련 문서
+## 관련 문서
 
-- **QUICK-START.md**: 1분 안에 시작하기
-- **cloudflare-worker-proxy.js**: Cloudflare Workers 프록시 코드
-- **cors-fix.html**: CORS 문제 빠른 참조
-- **CHANGELOG.md**: 버전 히스토리
+- `cloudflare-worker-proxy.js`: Cloudflare Workers 프록시 코드
+- `docs/CHANGELOG.md`: 버전 히스토리
 
 ---
 
