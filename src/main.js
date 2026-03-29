@@ -6,6 +6,7 @@ import { initEditor, loadCurrentEpisode } from './modules/editor.js';
 import { initEpisodes, updateEpisodesList, updateVolumeSelector, createNewVolume } from './modules/episodes.js';
 import { initCharacters, renderCharacterGrid } from './modules/characters.js';
 import { initGoogleDrive } from './modules/google-drive.js';
+import { initLocalStorage } from './modules/local-storage.js';
 import { initTheme } from './modules/theme.js';
 import { initCoreSettings, loadCoreData } from './modules/core-settings.js';
 import { initWorld, renderWorldTags, renderWorldAccordion } from './modules/world.js';
@@ -65,6 +66,7 @@ function initApp() {
     initEpisodes(els);
     initCharacters(els);
     initGoogleDrive(els);
+    initLocalStorage(els);
     initTheme();
     initCoreSettings();
     initWorld(els);

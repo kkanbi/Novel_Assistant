@@ -11,6 +11,9 @@ let accessToken = null;
 let folderId = null;
 let currentFileId = null;
 let selectedModalFileId = null;
+let driveFolderName = null;
+let folderPickerSelectedId = null;
+let folderPickerSelectedName = null;
 let els = {};
 
 /**
@@ -20,7 +23,6 @@ let els = {};
 export function initGoogleDrive(elements) {
     els = elements;
 
-    // 이벤트 리스너
     els.btnGoogleAuth.addEventListener('click', () => {
         if (accessToken) {
             logout();
@@ -31,23 +33,43 @@ export function initGoogleDrive(elements) {
 
     document.getElementById('btnSaveDrive').addEventListener('click', saveToDrive);
     document.getElementById('btnLoadDrive').addEventListener('click', showFileList);
-    document.getElementById('btnModalCancel').addEventListener('click', () => {
-        els.fileModal.classList.remove('active');
-    });
+
+    document.getElementById('btnModalCancel').addEventListener('click', closeFileModal);
     els.btnModalOpen.addEventListener('click', () => {
+        if (els.fileModal.dataset.mode === 'local') return;
         if (selectedModalFileId) {
             loadFromDrive(selectedModalFileId);
-            els.fileModal.classList.remove('active');
+            closeFileModal();
         }
     });
     els.fileModal.addEventListener('click', (e) => {
-        if (e.target === els.fileModal) {
-            els.fileModal.classList.remove('active');
+        if (e.target === els.fileModal) closeFileModal();
+    });
+
+    // 폴더 선택 모달 이벤트
+    document.getElementById('btnChangeDriveFolder').addEventListener('click', showDriveFolderPicker);
+    document.getElementById('btnFolderCancel').addEventListener('click', () => {
+        document.getElementById('folderPickerModal').classList.remove('active');
+    });
+    document.getElementById('btnFolderNew').addEventListener('click', createNewDriveFolder);
+    document.getElementById('btnFolderSelect').addEventListener('click', confirmFolderSelection);
+    document.getElementById('folderPickerModal').addEventListener('click', (e) => {
+        // 이미 폴더가 설정된 경우에만 외부 클릭으로 닫기
+        if (e.target === document.getElementById('folderPickerModal') && folderId) {
+            document.getElementById('folderPickerModal').classList.remove('active');
         }
     });
 
-    // API 초기화
     loadGoogleAPI();
+}
+
+function closeFileModal() {
+    els.fileModal.classList.remove('active');
+    els.fileModal.dataset.mode = '';
+    const title = document.getElementById('fileModalTitle');
+    if (title) title.textContent = '📂 Google Drive에서 열기';
+    selectedModalFileId = null;
+    els.btnModalOpen.disabled = true;
 }
 
 /**
@@ -94,7 +116,7 @@ async function validateToken() {
             const info = await response.json();
             updateGoogleUI(true, info.email);
             gapi.client.setToken({ access_token: accessToken });
-            await ensureFolder();
+            await setupFolder();
         } else {
             logout();
         }
@@ -117,9 +139,9 @@ function handleAuthCallback(response) {
 
     fetch('https://www.googleapis.com/oauth2/v1/userinfo?access_token=' + accessToken)
         .then(res => res.json())
-        .then(user => {
+        .then(async user => {
             updateGoogleUI(true, user.email);
-            ensureFolder();
+            await setupFolder();
         });
 }
 
@@ -149,6 +171,9 @@ function updateGoogleUI(connected, email = '') {
             Google 로그인
         `;
         els.btnGoogleAuth.classList.remove('disconnect');
+
+        const folderRow = document.getElementById('driveFolderRow');
+        if (folderRow) folderRow.style.display = 'none';
     }
 }
 
@@ -171,7 +196,10 @@ function logout() {
     accessToken = null;
     folderId = null;
     currentFileId = null;
+    driveFolderName = null;
     localStorage.removeItem('novelWriter_gtoken');
+    localStorage.removeItem('novelWriter_driveFolderId');
+    localStorage.removeItem('novelWriter_driveFolderName');
 
     if (tokenToRevoke && google?.accounts?.oauth2) {
         google.accounts.oauth2.revoke(tokenToRevoke);
@@ -180,9 +208,137 @@ function logout() {
 }
 
 /**
- * 폴더 확인/생성
+ * 로그인 후 폴더 설정 (저장된 폴더 사용 또는 폴더 선택 모달 표시)
+ */
+async function setupFolder() {
+    const savedFolderId = localStorage.getItem('novelWriter_driveFolderId');
+    const savedFolderName = localStorage.getItem('novelWriter_driveFolderName');
+
+    if (savedFolderId) {
+        folderId = savedFolderId;
+        driveFolderName = savedFolderName || GOOGLE_CONFIG.FOLDER_NAME;
+        updateFolderDisplay(driveFolderName);
+    } else {
+        await showDriveFolderPicker();
+    }
+}
+
+/**
+ * 폴더 표시 업데이트
+ */
+function updateFolderDisplay(name) {
+    const folderRow = document.getElementById('driveFolderRow');
+    const folderNameEl = document.getElementById('driveFolderName');
+    if (folderRow) folderRow.style.display = 'flex';
+    if (folderNameEl) folderNameEl.textContent = name || GOOGLE_CONFIG.FOLDER_NAME;
+}
+
+/**
+ * Drive 폴더 선택 모달 표시
+ */
+async function showDriveFolderPicker() {
+    const modal = document.getElementById('folderPickerModal');
+    const list = document.getElementById('folderPickerList');
+    const btnSelect = document.getElementById('btnFolderSelect');
+
+    modal.classList.add('active');
+    list.innerHTML = '<div class="modal-empty">폴더를 불러오는 중...</div>';
+    folderPickerSelectedId = null;
+    folderPickerSelectedName = null;
+    btnSelect.disabled = true;
+
+    try {
+        const response = await gapi.client.drive.files.list({
+            q: `mimeType='application/vnd.google-apps.folder' and trashed=false`,
+            fields: 'files(id, name)',
+            orderBy: 'name',
+            pageSize: 100
+        });
+
+        const folders = response.result.files || [];
+
+        if (folders.length === 0) {
+            list.innerHTML = '<div class="modal-empty">폴더가 없습니다.<br>새 폴더를 만들어주세요.</div>';
+            return;
+        }
+
+        list.innerHTML = '';
+        folders.forEach(folder => {
+            const div = document.createElement('div');
+            div.className = 'modal-file-item';
+            div.innerHTML = `
+                <span class="modal-file-icon">📁</span>
+                <div class="modal-file-info">
+                    <div class="modal-file-name">${folder.name}</div>
+                </div>
+            `;
+            div.addEventListener('click', () => {
+                list.querySelectorAll('.modal-file-item').forEach(el => el.classList.remove('selected'));
+                div.classList.add('selected');
+                folderPickerSelectedId = folder.id;
+                folderPickerSelectedName = folder.name;
+                btnSelect.disabled = false;
+            });
+            list.appendChild(div);
+        });
+    } catch (e) {
+        console.error('Folder list error:', e);
+        list.innerHTML = '<div class="modal-empty">폴더 목록을 불러올 수 없습니다.</div>';
+    }
+}
+
+/**
+ * 새 Drive 폴더 만들기
+ */
+async function createNewDriveFolder() {
+    const name = prompt('새 폴더 이름을 입력하세요:', GOOGLE_CONFIG.FOLDER_NAME);
+    if (!name) return;
+
+    try {
+        const createResponse = await gapi.client.drive.files.create({
+            resource: {
+                name: name,
+                mimeType: 'application/vnd.google-apps.folder'
+            },
+            fields: 'id, name'
+        });
+
+        folderId = createResponse.result.id;
+        driveFolderName = createResponse.result.name;
+        localStorage.setItem('novelWriter_driveFolderId', folderId);
+        localStorage.setItem('novelWriter_driveFolderName', driveFolderName);
+        currentFileId = null;
+
+        document.getElementById('folderPickerModal').classList.remove('active');
+        updateFolderDisplay(driveFolderName);
+    } catch (e) {
+        console.error('Create folder error:', e);
+        alert('폴더 생성에 실패했습니다.');
+    }
+}
+
+/**
+ * 폴더 선택 확인
+ */
+function confirmFolderSelection() {
+    if (!folderPickerSelectedId) return;
+
+    folderId = folderPickerSelectedId;
+    driveFolderName = folderPickerSelectedName;
+    localStorage.setItem('novelWriter_driveFolderId', folderId);
+    localStorage.setItem('novelWriter_driveFolderName', driveFolderName);
+    currentFileId = null;
+
+    document.getElementById('folderPickerModal').classList.remove('active');
+    updateFolderDisplay(driveFolderName);
+}
+
+/**
+ * 폴더 확인/생성 (fallback용)
  */
 async function ensureFolder() {
+    if (folderId) return;
+
     try {
         const response = await gapi.client.drive.files.list({
             q: `name='${GOOGLE_CONFIG.FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
@@ -191,6 +347,7 @@ async function ensureFolder() {
 
         if (response.result?.files?.length > 0) {
             folderId = response.result.files[0].id;
+            driveFolderName = GOOGLE_CONFIG.FOLDER_NAME;
         } else {
             const createResponse = await gapi.client.drive.files.create({
                 resource: {
@@ -200,7 +357,12 @@ async function ensureFolder() {
                 fields: 'id'
             });
             folderId = createResponse.result.id;
+            driveFolderName = GOOGLE_CONFIG.FOLDER_NAME;
         }
+
+        localStorage.setItem('novelWriter_driveFolderId', folderId);
+        localStorage.setItem('novelWriter_driveFolderName', driveFolderName);
+        updateFolderDisplay(driveFolderName);
     } catch (e) {
         console.error('Folder error:', e);
     }
@@ -231,7 +393,6 @@ async function saveToDrive() {
     try {
         await ensureFolder();
 
-        // 같은 파일명의 기존 파일 검색
         if (!currentFileId) {
             const searchResponse = await gapi.client.drive.files.list({
                 q: `'${folderId}' in parents and name='${filename}' and mimeType='application/json' and trashed=false`,
@@ -240,7 +401,6 @@ async function saveToDrive() {
             });
 
             if (searchResponse.result.files.length > 0) {
-                // 기존 파일이 있으면 해당 파일 업데이트
                 currentFileId = searchResponse.result.files[0].id;
             }
         }
@@ -301,6 +461,9 @@ async function showFileList() {
         return;
     }
 
+    const title = document.getElementById('fileModalTitle');
+    if (title) title.textContent = '📂 Google Drive에서 열기';
+    els.fileModal.dataset.mode = 'drive';
     els.fileModal.classList.add('active');
     els.modalFileList.innerHTML = '<div class="modal-empty">파일을 불러오는 중...</div>';
     selectedModalFileId = null;
@@ -362,16 +525,13 @@ async function loadFromDrive(fileId) {
             ? JSON.parse(response.body)
             : (response.result || {});
 
-        // 프로젝트 데이터 정규화 및 업데이트
         state.project = normalizeProject(data);
         state.currentEpisodeIndex = 0;
         currentFileId = fileId;
 
-        // UI 갱신
         loadCurrentEpisode();
         updateEpisodesList();
         renderCharacterGrid();
-        // 나머지 UI도 업데이트 필요 (world, treatment 등)
 
         els.saveStatus.textContent = '불러옴 ✓';
         els.saveStatus.className = 'save-status saved';

@@ -301,6 +301,81 @@ body {
     height: 18px;
 }
 
+.drive-folder-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.drive-folder-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.drive-folder-name {
+    flex: 1;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.btn-folder-change {
+    padding: 3px 10px;
+    font-size: 11px;
+    font-family: inherit;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    border-radius: 5px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.btn-folder-change:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.local-folder-panel {
+    padding: 14px;
+}
+
+.local-folder-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.local-folder-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.local-folder-name {
+    flex: 1;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.local-folder-actions {
+    display: flex;
+    gap: 8px;
+}
+
 .project-info {
     padding: 14px;
     display: flex;

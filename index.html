@@ -136,6 +136,24 @@
                         </svg>
                         Google 로그인
                     </button>
+                    <div class="drive-folder-row" id="driveFolderRow" style="display:none;">
+                        <span class="drive-folder-icon">📁</span>
+                        <span class="drive-folder-name" id="driveFolderName">소설작성기</span>
+                        <button class="btn-folder-change" id="btnChangeDriveFolder">변경</button>
+                    </div>
+                </div>
+
+                <div class="panel-header">로컬 폴더</div>
+                <div class="local-folder-panel">
+                    <div class="local-folder-status">
+                        <span class="local-folder-icon">📁</span>
+                        <span class="local-folder-name" id="localFolderName">선택된 폴더 없음</span>
+                    </div>
+                    <button class="btn btn-secondary" id="btnSelectLocalFolder" style="width:100%; margin-top:8px;">📁 폴더 선택</button>
+                    <div class="local-folder-actions" id="localFolderActions" style="display:none; margin-top:8px;">
+                        <button class="btn btn-secondary" id="btnSaveLocal">💾 저장</button>
+                        <button class="btn btn-secondary" id="btnLoadLocal">📂 열기</button>
+                    </div>
                 </div>
 
                 <div class="panel-header">화면 설정</div>
@@ -536,13 +554,29 @@
     <!-- 파일 선택 모달 -->
     <div class="modal-overlay" id="fileModal">
         <div class="modal">
-            <h3>📂 Google Drive에서 열기</h3>
+            <h3 id="fileModalTitle">📂 Google Drive에서 열기</h3>
             <div class="modal-file-list" id="modalFileList">
                 <div class="modal-empty">파일을 불러오는 중...</div>
             </div>
             <div class="modal-buttons">
                 <button class="btn btn-secondary" id="btnModalCancel">취소</button>
                 <button class="btn btn-primary" id="btnModalOpen" disabled>열기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 드라이브 폴더 선택 모달 -->
+    <div class="modal-overlay" id="folderPickerModal">
+        <div class="modal">
+            <h3>📁 저장 폴더 선택</h3>
+            <div class="modal-file-list" id="folderPickerList">
+                <div class="modal-empty">폴더를 불러오는 중...</div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="btnFolderNew">+ 새 폴더</button>
+                <div style="flex:1;"></div>
+                <button class="btn btn-secondary" id="btnFolderCancel">취소</button>
+                <button class="btn btn-primary" id="btnFolderSelect" disabled>선택</button>
             </div>
         </div>
     </div>
