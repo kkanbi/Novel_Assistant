@@ -20,8 +20,10 @@ export const CLAUDE_CONFIG = {
         OUTPUT_PER_MILLION: 15
     },
     // Cloudflare Workers 프록시 URL (GitHub Pages 배포 시 설정)
-    // SETUP-GUIDE.md 참조: https://workers.cloudflare.com
-    WORKER_URL: ''  // 예: 'https://novel-proxy.your-name.workers.dev'
+    // 비워두면 corsproxy.io 폴백 사용 (불안정할 수 있음)
+    // 설정 방법: docs/SETUP.md "방법 3: GitHub Pages" → B. Claude API CORS 우회 참조
+    // 예: WORKER_URL: 'https://novel-proxy.your-name.workers.dev'
+    WORKER_URL: ''
 };
 
 export const GEMINI_CONFIG = {
