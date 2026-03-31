@@ -1,5 +1,39 @@
 # 소설 작성기 변경 이력
 
+## [v0.6.0] - 2026-03-31 🌐 (GitHub Pages 배포)
+
+### ✨ 새 기능
+- **GitHub Pages 자동 배포**: `.github/workflows/deploy.yml` 추가
+  - main 브랜치 push 시 자동 배포
+  - 수동 트리거(`workflow_dispatch`) 지원
+  - 배포 URL: `https://kkanbi.github.io/Novel_Assistant/`
+
+### 📝 변경 사항
+- `constants.js`: `WORKER_URL` 주석 명확화 (corsproxy.io 폴백 안내 추가)
+
+### ✅ 동작 확인
+- Google Drive 저장/불러오기: 정상
+- Gemini AI 검토: 정상 (직접 브라우저 호출 허용)
+- Claude AI 검토: Cloudflare Workers 미설정 시 corsproxy.io 폴백 → 불안정
+
+### ⚠️ 잔여 작업
+- **Cloudflare Workers 프록시 미설정**: Claude API 사용 시 필요
+  - `cloudflare-worker-proxy.js` → Cloudflare 대시보드 배포 후 `WORKER_URL` 입력
+  - 설정 방법: `docs/SETUP.md` — 방법 3: GitHub Pages → B. Claude API CORS 우회
+
+### 📁 수정/추가 파일
+- `.github/workflows/deploy.yml` — GitHub Actions 배포 워크플로우 (신규)
+- `src/utils/constants.js` — WORKER_URL 주석 개선
+- `docs/PHASES.md` — Phase 2 계획 전체 추가
+
+### 📝 세션 기록 (2026-03-31)
+- Phase 2 계획 수립 (v0.5.0 ~ v1.0.0, 브랜치 전략)
+- GitHub Pages 배포 완료 — 핸드폰 접속 가능
+- Claude API CORS 이슈 확인 → Cloudflare Workers 필요 (다음 세션)
+- Gemini/Google Drive는 GitHub Pages에서 정상 동작 확인
+
+---
+
 ## [v0.4.1] - 2026-03-21 🛠️ (1차 개발 완료)
 
 ### 🐛 버그 수정
