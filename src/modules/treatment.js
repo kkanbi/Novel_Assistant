@@ -515,90 +515,116 @@ function showCheckpointHistory(partId, sectionId, episodeId) {
 }
 
 /**
- * 체크포인트 비교
+ * 에피소드 전체 내용을 하나의 텍스트로 합치기
+ */
+function buildEpisodeText(data) {
+    const parts = [];
+    if (data.summary)         parts.push('[전개 요약]\n' + data.summary);
+    if (data.setting)         parts.push('[배경]\n' + data.setting);
+    if (data.events)          parts.push('[사건]\n' + data.events);
+    if (data.characterChange) parts.push('[캐릭터 심리 변화]\n' + data.characterChange);
+    if (data.direction)       parts.push('[연출 가이드]\n' + data.direction);
+    if (data.memo)            parts.push('[메모]\n' + data.memo);
+    return parts.join('\n\n');
+}
+
+/**
+ * LCS 기반 라인 diff 계산
+ * 반환값: [{type: 'same'|'deleted'|'added', text: string}, ...]
+ */
+function computeLineDiff(oldLines, newLines) {
+    const m = oldLines.length, n = newLines.length;
+    const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+    for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+            if (oldLines[i - 1] === newLines[j - 1]) dp[i][j] = dp[i - 1][j - 1] + 1;
+            else dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+        }
+    }
+    const result = [];
+    let i = m, j = n;
+    while (i > 0 || j > 0) {
+        if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
+            result.unshift({ type: 'same', text: oldLines[i - 1] });
+            i--; j--;
+        } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+            result.unshift({ type: 'added', text: newLines[j - 1] });
+            j--;
+        } else {
+            result.unshift({ type: 'deleted', text: oldLines[i - 1] });
+            i--;
+        }
+    }
+    return result;
+}
+
+/**
+ * 체크포인트 비교 (텍스트 diff 뷰)
  */
 function compareCheckpoint(episode, checkpointId) {
     const checkpoint = episode.checkpoints.find(cp => cp.id === checkpointId);
     if (!checkpoint) return;
 
-    const current = {
-        memo: episode.memo || '',
+    const oldText = buildEpisodeText(checkpoint.data);
+    const newText = buildEpisodeText({
         summary: episode.summary || '',
         setting: episode.setting || '',
         events: episode.events || '',
         characterChange: episode.characterChange || '',
-        direction: episode.direction || ''
-    };
+        direction: episode.direction || '',
+        memo: episode.memo || ''
+    });
 
-    const saved = checkpoint.data;
+    const oldLines = oldText.split('\n');
+    const newLines = newText.split('\n');
 
-    // 비교 모달 생성
+    // 너무 큰 경우 단순 사이드바이사이드로 폴백
+    const MAX_LINES = 600;
+    let leftHTML = '', rightHTML = '';
+
+    if (oldLines.length + newLines.length > MAX_LINES) {
+        leftHTML = `<pre class="diff-pre">${escapeHtml(oldText) || '<em class="diff-empty">내용 없음</em>'}</pre>`;
+        rightHTML = `<pre class="diff-pre">${escapeHtml(newText) || '<em class="diff-empty">내용 없음</em>'}</pre>`;
+    } else {
+        const diff = computeLineDiff(oldLines, newLines);
+        const leftLines = diff.filter(d => d.type !== 'added');
+        const rightLines = diff.filter(d => d.type !== 'deleted');
+
+        leftHTML = leftLines.map(d =>
+            `<div class="diff-line ${d.type === 'deleted' ? 'diff-deleted' : ''}">${escapeHtml(d.text) || ' '}</div>`
+        ).join('');
+        rightHTML = rightLines.map(d =>
+            `<div class="diff-line ${d.type === 'added' ? 'diff-added' : ''}">${escapeHtml(d.text) || ' '}</div>`
+        ).join('');
+    }
+
     const compareModal = document.createElement('div');
     compareModal.className = 'checkpoint-modal';
     compareModal.innerHTML = `
         <div class="checkpoint-modal-content checkpoint-compare-modal">
             <div class="checkpoint-modal-header">
-                <h3>버전 비교</h3>
+                <h3>버전 비교 — ${escapeHtml(checkpoint.message)}</h3>
+                <span class="checkpoint-time" style="font-size:12px; font-weight:400;">${new Date(checkpoint.timestamp).toLocaleString('ko-KR')}</span>
                 <button class="checkpoint-modal-close">×</button>
             </div>
             <div class="checkpoint-modal-body">
-                <div class="checkpoint-compare-info">
-                    <strong>체크포인트:</strong> ${checkpoint.message}
-                    <span class="checkpoint-time">(${new Date(checkpoint.timestamp).toLocaleString('ko-KR')})</span>
-                </div>
-                <div class="checkpoint-compare-content">
-                    ${generateComparisonHTML('메모', saved.memo, current.memo)}
-                    ${generateComparisonHTML('전개 요약', saved.summary, current.summary)}
-                    ${generateComparisonHTML('배경', saved.setting, current.setting)}
-                    ${generateComparisonHTML('사건', saved.events, current.events)}
-                    ${generateComparisonHTML('캐릭터 심리 변화', saved.characterChange, current.characterChange)}
-                    ${generateComparisonHTML('연출 가이드', saved.direction, current.direction)}
+                <div class="diff-panel-wrap">
+                    <div class="diff-panel diff-panel-old">
+                        <div class="diff-panel-header">이전 버전 (체크포인트)</div>
+                        <div class="diff-panel-body">${leftHTML || '<em class="diff-empty">내용 없음</em>'}</div>
+                    </div>
+                    <div class="diff-panel diff-panel-new">
+                        <div class="diff-panel-header">현재 버전</div>
+                        <div class="diff-panel-body">${rightHTML || '<em class="diff-empty">내용 없음</em>'}</div>
+                    </div>
                 </div>
             </div>
         </div>
     `;
 
     document.body.appendChild(compareModal);
-
-    compareModal.querySelector('.checkpoint-modal-close').addEventListener('click', () => {
-        compareModal.remove();
-    });
-
-    compareModal.addEventListener('click', (e) => {
-        if (e.target === compareModal) {
-            compareModal.remove();
-        }
-    });
-}
-
-/**
- * 비교 HTML 생성
- */
-function generateComparisonHTML(label, oldValue, newValue) {
-    if (oldValue === newValue) {
-        return `
-            <div class="checkpoint-compare-section">
-                <h4>${label}</h4>
-                <div class="checkpoint-compare-unchanged">${escapeHtml(newValue) || '<em>비어있음</em>'}</div>
-            </div>
-        `;
-    }
-
-    return `
-        <div class="checkpoint-compare-section">
-            <h4>${label}</h4>
-            <div class="checkpoint-compare-row">
-                <div class="checkpoint-compare-old">
-                    <strong>이전 버전:</strong>
-                    <pre>${escapeHtml(oldValue) || '<em>비어있음</em>'}</pre>
-                </div>
-                <div class="checkpoint-compare-new">
-                    <strong>현재 버전:</strong>
-                    <pre>${escapeHtml(newValue) || '<em>비어있음</em>'}</pre>
-                </div>
-            </div>
-        </div>
-    `;
+    compareModal.querySelector('.checkpoint-modal-close').addEventListener('click', () => compareModal.remove());
+    compareModal.addEventListener('click', (e) => { if (e.target === compareModal) compareModal.remove(); });
 }
 
 /**
