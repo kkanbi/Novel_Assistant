@@ -28,6 +28,11 @@ function handleContentChange() {
         ep.content = els.episodeContent.value;
         ep.charCount = els.episodeContent.value.replace(/\s/g, '').length;
         ep.lastModified = new Date().toISOString();
+        // 회차 목록의 글자수 실시간 업데이트
+        const activeChars = document.querySelector('.episode-item.active .episode-chars');
+        if (activeChars) {
+            activeChars.textContent = `${ep.content.length.toLocaleString()} / ${ep.charCount.toLocaleString()}자`;
+        }
     }
 }
 
