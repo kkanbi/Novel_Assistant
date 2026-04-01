@@ -297,6 +297,14 @@ function handleTreeAction(action, item) {
             renderTreatmentTree();
             autoSaveLocal();
         }
+    } else if (action === 'save-checkpoint') {
+        if (episodeId) {
+            saveCheckpoint(partId, sectionId, episodeId);
+        }
+    } else if (action === 'view-history') {
+        if (episodeId) {
+            showCheckpointHistory(partId, sectionId, episodeId);
+        }
     } else if (action === 'compare') {
         if (episodeId) {
             const section = part.sections.find(s => s.id === sectionId);
