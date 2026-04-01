@@ -128,7 +128,7 @@ function updateEpisodeProgress() {
     const listContainer = document.getElementById('episodeProgressList');
     if (!listContainer) return;
 
-    const currentVolume = state.project.volumes[`volume${state.project.currentVolume}`];
+    const currentVolume = state.project.volumes[state.project.currentVolume];
     if (!currentVolume || !currentVolume.episodes) {
         listContainer.innerHTML = '<div class="word-cloud-empty">회차가 없습니다</div>';
         return;
@@ -181,7 +181,7 @@ function updateWordCloud() {
     if (!cloudContainer) return;
 
     // 현재 권의 모든 회차 내용 수집
-    const currentVolume = state.project.volumes[`volume${state.project.currentVolume}`];
+    const currentVolume = state.project.volumes[state.project.currentVolume];
     if (!currentVolume || !currentVolume.episodes) {
         cloudContainer.innerHTML = '<div class="word-cloud-empty">내용이 없습니다</div>';
         return;

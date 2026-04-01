@@ -3050,6 +3050,31 @@ h4.type-flow        { color: #1aaa82 !important; border-left-color: #1aaa82 !imp
     min-height: 1.7em;
 }
 
+.diff-chunk-deleted {
+    border-left: 2px solid rgba(239, 68, 68, 0.4);
+    margin: 2px 0;
+}
+
+.diff-restore-bar {
+    padding: 3px 14px;
+    background: rgba(239, 68, 68, 0.06);
+}
+
+.diff-restore-btn {
+    font-size: 11px;
+    padding: 2px 8px;
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.diff-restore-btn:hover {
+    background: rgba(239, 68, 68, 0.25);
+}
+
 .diff-deleted {
     background: rgba(239, 68, 68, 0.15);
     color: #ef4444;

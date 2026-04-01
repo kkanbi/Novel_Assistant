@@ -94,7 +94,7 @@ export function updateProgress() {
     const vol = getCurrentVolume();
     if (!vol) return;
 
-    const totalChars = vol.episodes.reduce((sum, ep) => sum + ep.charCount, 0);
+    const totalChars = vol.episodes.reduce((sum, ep) => sum + (ep.content ? ep.content.length : 0), 0);
     const goal = state.project.volumeGoal;
     const percent = Math.min(100, (totalChars / goal) * 100);
 

@@ -568,25 +568,79 @@ function computeLineDiff(oldLines, newLines) {
 }
 
 /**
- * 체크포인트 비교 (본문 텍스트 diff 뷰)
+ * 텍스트를 diff용으로 정규화 (앞뒤 공백 제거, 빈 줄 제거)
+ */
+function normalizeForDiff(text) {
+    return text
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l.length > 0);
+}
+
+/**
+ * 체크포인트 비교 (본문 텍스트 diff 뷰, 문단 단위 복원 지원)
  */
 function compareCheckpoint(episode, checkpointId) {
     const checkpoint = episode.checkpoints.find(cp => cp.id === checkpointId);
     if (!checkpoint) return;
 
-    const oldText = checkpoint.data.episodeContent || '';
+    const rawOld = checkpoint.data.episodeContent || '';
     const vol = state.project.volumes[state.project.currentVolume];
-    // 트리트먼트 회차 제목으로 소설 회차 매칭 (항상 올바른 화차와 비교)
     const matchedIndex = findNovelEpisodeIndex(episode.title, vol);
     const targetIndex = matchedIndex !== -1 ? matchedIndex : state.currentEpisodeIndex;
-    const newText = vol ? (vol.episodes[targetIndex]?.content || '') : '';
+    const rawNew = vol ? (vol.episodes[targetIndex]?.content || '') : '';
 
-    if (!oldText && !newText) {
+    if (!rawOld && !rawNew) {
         alert('비교할 본문 내용이 없습니다.\n체크포인트 저장 시 편집기에 해당 화차 본문이 열려 있어야 합니다.');
         return;
     }
 
-    const { leftHTML, rightHTML } = buildDiffHTML(oldText, newText);
+    // 공백/줄바꿈 정규화 후 diff
+    const oldLines = normalizeForDiff(rawOld);
+    const newLines = normalizeForDiff(rawNew);
+    const diff = computeLineDiff(oldLines, newLines);
+
+    // diff를 청크로 묶기 (같은 type 연속 → 하나의 청크)
+    const chunks = [];
+    let prevSameLines = [];
+    let i = 0;
+    while (i < diff.length) {
+        const type = diff[i].type;
+        const lines = [];
+        while (i < diff.length && diff[i].type === type) {
+            lines.push(diff[i].text);
+            i++;
+        }
+        if (type === 'deleted') {
+            chunks.push({ type, lines, anchorLines: [...prevSameLines] });
+        } else {
+            chunks.push({ type, lines });
+            if (type === 'same') {
+                prevSameLines = [...prevSameLines, ...lines].slice(-5);
+            }
+        }
+    }
+
+    // 청크 → HTML 생성
+    let leftHTML = '', rightHTML = '';
+    chunks.forEach((chunk, idx) => {
+        const linesHTML = chunk.lines.map(l => `<div class="diff-line">${escapeHtml(l)}</div>`).join('');
+        if (chunk.type === 'same') {
+            leftHTML += linesHTML;
+            rightHTML += linesHTML;
+        } else if (chunk.type === 'deleted') {
+            leftHTML += `<div class="diff-chunk-deleted" data-chunk-idx="${idx}">
+                <div class="diff-restore-bar">
+                    <button class="diff-restore-btn" data-chunk-idx="${idx}">↩ 이 부분 복원</button>
+                </div>
+                ${chunk.lines.map(l => `<div class="diff-line diff-deleted">${escapeHtml(l)}</div>`).join('')}
+            </div>`;
+        } else {
+            rightHTML += `<div class="diff-chunk-added">
+                ${chunk.lines.map(l => `<div class="diff-line diff-added">${escapeHtml(l)}</div>`).join('')}
+            </div>`;
+        }
+    });
 
     const compareModal = document.createElement('div');
     compareModal.className = 'checkpoint-modal';
@@ -600,11 +654,11 @@ function compareCheckpoint(episode, checkpointId) {
             <div class="checkpoint-modal-body">
                 <div class="diff-panel-wrap">
                     <div class="diff-panel diff-panel-old">
-                        <div class="diff-panel-header">이전 버전 (체크포인트)</div>
+                        <div class="diff-panel-header">이전 버전 (체크포인트) — 빨간 줄: 현재 없어진 내용</div>
                         <div class="diff-panel-body">${leftHTML || '<em class="diff-empty">내용 없음</em>'}</div>
                     </div>
                     <div class="diff-panel diff-panel-new">
-                        <div class="diff-panel-header">현재 버전</div>
+                        <div class="diff-panel-header">현재 버전 — 초록 줄: 새로 추가된 내용</div>
                         <div class="diff-panel-body">${rightHTML || '<em class="diff-empty">내용 없음</em>'}</div>
                     </div>
                 </div>
@@ -615,32 +669,66 @@ function compareCheckpoint(episode, checkpointId) {
     document.body.appendChild(compareModal);
     compareModal.querySelector('.checkpoint-modal-close').addEventListener('click', () => compareModal.remove());
     compareModal.addEventListener('click', (e) => { if (e.target === compareModal) compareModal.remove(); });
+
+    // 복원 버튼 이벤트
+    compareModal.querySelectorAll('.diff-restore-btn').forEach(btn => {
+        const chunkIdx = parseInt(btn.dataset.chunkIdx);
+        const chunk = chunks[chunkIdx];
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const preview = chunk.lines.join(' ').substring(0, 80);
+            if (confirm(`이 부분을 현재 본문에 복원할까요?\n\n"${preview}${chunk.lines.join('').length > 80 ? '...' : ''}"`)) {
+                restoreDeletedChunk(episode, chunk.lines, chunk.anchorLines, targetIndex, compareModal, checkpointId);
+            }
+        });
+    });
 }
 
 /**
- * diff HTML 생성 (LCS, 폴백 포함)
+ * 삭제된 청크를 현재 본문에 복원
  */
-function buildDiffHTML(oldText, newText) {
-    const oldLines = oldText.split('\n');
-    const newLines = newText.split('\n');
-    const MAX_LINES = 600;
+function restoreDeletedChunk(episode, deletedLines, anchorLines, targetIndex, modal, checkpointId) {
+    const vol = state.project.volumes[state.project.currentVolume];
+    if (!vol) return;
+    const novelEp = vol.episodes[targetIndex];
+    if (!novelEp) return;
 
-    if (oldLines.length + newLines.length > MAX_LINES) {
-        return {
-            leftHTML: `<pre class="diff-pre">${escapeHtml(oldText)}</pre>`,
-            rightHTML: `<pre class="diff-pre">${escapeHtml(newText)}</pre>`
-        };
+    const current = novelEp.content;
+    const insertText = deletedLines.join('\n');
+    let newContent;
+
+    // 앵커(바로 앞의 same 라인)를 현재 본문에서 찾아 그 뒤에 삽입
+    let insertPos = -1;
+    for (let i = anchorLines.length - 1; i >= 0 && insertPos === -1; i--) {
+        const anchor = anchorLines[i].trim();
+        if (!anchor) continue;
+        const pos = current.lastIndexOf(anchor);
+        if (pos !== -1) insertPos = pos + anchor.length;
     }
 
-    const diff = computeLineDiff(oldLines, newLines);
-    const leftHTML = diff.filter(d => d.type !== 'added').map(d =>
-        `<div class="diff-line ${d.type === 'deleted' ? 'diff-deleted' : ''}">${escapeHtml(d.text) || ' '}</div>`
-    ).join('');
-    const rightHTML = diff.filter(d => d.type !== 'deleted').map(d =>
-        `<div class="diff-line ${d.type === 'added' ? 'diff-added' : ''}">${escapeHtml(d.text) || ' '}</div>`
-    ).join('');
+    if (insertPos === -1) {
+        newContent = insertText + '\n\n' + current;
+    } else {
+        newContent = current.slice(0, insertPos) + '\n' + insertText + current.slice(insertPos);
+    }
 
-    return { leftHTML, rightHTML };
+    novelEp.content = newContent;
+    novelEp.charCount = newContent.replace(/\s/g, '').length;
+
+    // 에디터가 이 회차를 보여주고 있으면 텍스트 갱신
+    const editorEl = document.getElementById('episodeContent');
+    if (editorEl && state.currentEpisodeIndex === targetIndex) {
+        editorEl.value = newContent;
+        editorEl.dispatchEvent(new Event('input'));
+    }
+    const activeCharsEl = document.querySelector('.episode-item.active .episode-chars');
+    if (activeCharsEl && state.currentEpisodeIndex === targetIndex) {
+        activeCharsEl.textContent = `${newContent.length.toLocaleString()} / ${novelEp.charCount.toLocaleString()}자`;
+    }
+
+    autoSaveLocal();
+    modal.remove();
+    compareCheckpoint(episode, checkpointId); // 비교창 다시 열기
 }
 
 /**
