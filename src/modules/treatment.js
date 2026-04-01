@@ -404,7 +404,8 @@ function saveCheckpoint(partId, sectionId, episodeId) {
 
     // 현재 편집 중인 본문 가져오기
     const vol = state.project.volumes[state.project.currentVolume];
-    const currentContent = vol ? (vol.episodes[state.currentEpisodeIndex]?.content || '') : '';
+    const savedEpisodeIndex = state.currentEpisodeIndex;
+    const currentContent = vol ? (vol.episodes[savedEpisodeIndex]?.content || '') : '';
 
     // 현재 상태 스냅샷 생성
     const checkpoint = {
@@ -420,7 +421,8 @@ function saveCheckpoint(partId, sectionId, episodeId) {
             events: episode.events || '',
             characterChange: episode.characterChange || '',
             direction: episode.direction || '',
-            episodeContent: currentContent
+            episodeContent: currentContent,
+            episodeIndex: savedEpisodeIndex
         }
     };
 
@@ -558,7 +560,9 @@ function compareCheckpoint(episode, checkpointId) {
 
     const oldText = checkpoint.data.episodeContent || '';
     const vol = state.project.volumes[state.project.currentVolume];
-    const newText = vol ? (vol.episodes[state.currentEpisodeIndex]?.content || '') : '';
+    // 저장 시 기록한 에피소드 인덱스 사용 (없으면 현재 인덱스로 폴백)
+    const targetIndex = checkpoint.data.episodeIndex ?? state.currentEpisodeIndex;
+    const newText = vol ? (vol.episodes[targetIndex]?.content || '') : '';
 
     if (!oldText && !newText) {
         alert('비교할 본문 내용이 없습니다.\n체크포인트 저장 시 편집기에 본문이 열려 있어야 합니다.');
