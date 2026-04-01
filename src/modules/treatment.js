@@ -402,6 +402,10 @@ function saveCheckpoint(partId, sectionId, episodeId) {
         episode.checkpoints = [];
     }
 
+    // 현재 편집 중인 본문 가져오기
+    const vol = state.project.volumes[state.project.currentVolume];
+    const currentContent = vol ? (vol.episodes[state.currentEpisodeIndex]?.content || '') : '';
+
     // 현재 상태 스냅샷 생성
     const checkpoint = {
         id: 'cp_' + Date.now(),
@@ -415,7 +419,8 @@ function saveCheckpoint(partId, sectionId, episodeId) {
             setting: episode.setting || '',
             events: episode.events || '',
             characterChange: episode.characterChange || '',
-            direction: episode.direction || ''
+            direction: episode.direction || '',
+            episodeContent: currentContent
         }
     };
 
@@ -515,20 +520,6 @@ function showCheckpointHistory(partId, sectionId, episodeId) {
 }
 
 /**
- * 에피소드 전체 내용을 하나의 텍스트로 합치기
- */
-function buildEpisodeText(data) {
-    const parts = [];
-    if (data.summary)         parts.push('[전개 요약]\n' + data.summary);
-    if (data.setting)         parts.push('[배경]\n' + data.setting);
-    if (data.events)          parts.push('[사건]\n' + data.events);
-    if (data.characterChange) parts.push('[캐릭터 심리 변화]\n' + data.characterChange);
-    if (data.direction)       parts.push('[연출 가이드]\n' + data.direction);
-    if (data.memo)            parts.push('[메모]\n' + data.memo);
-    return parts.join('\n\n');
-}
-
-/**
  * LCS 기반 라인 diff 계산
  * 반환값: [{type: 'same'|'deleted'|'added', text: string}, ...]
  */
@@ -559,51 +550,29 @@ function computeLineDiff(oldLines, newLines) {
 }
 
 /**
- * 체크포인트 비교 (텍스트 diff 뷰)
+ * 체크포인트 비교 (본문 텍스트 diff 뷰)
  */
 function compareCheckpoint(episode, checkpointId) {
     const checkpoint = episode.checkpoints.find(cp => cp.id === checkpointId);
     if (!checkpoint) return;
 
-    const oldText = buildEpisodeText(checkpoint.data);
-    const newText = buildEpisodeText({
-        summary: episode.summary || '',
-        setting: episode.setting || '',
-        events: episode.events || '',
-        characterChange: episode.characterChange || '',
-        direction: episode.direction || '',
-        memo: episode.memo || ''
-    });
+    const oldText = checkpoint.data.episodeContent || '';
+    const vol = state.project.volumes[state.project.currentVolume];
+    const newText = vol ? (vol.episodes[state.currentEpisodeIndex]?.content || '') : '';
 
-    const oldLines = oldText.split('\n');
-    const newLines = newText.split('\n');
-
-    // 너무 큰 경우 단순 사이드바이사이드로 폴백
-    const MAX_LINES = 600;
-    let leftHTML = '', rightHTML = '';
-
-    if (oldLines.length + newLines.length > MAX_LINES) {
-        leftHTML = `<pre class="diff-pre">${escapeHtml(oldText) || '<em class="diff-empty">내용 없음</em>'}</pre>`;
-        rightHTML = `<pre class="diff-pre">${escapeHtml(newText) || '<em class="diff-empty">내용 없음</em>'}</pre>`;
-    } else {
-        const diff = computeLineDiff(oldLines, newLines);
-        const leftLines = diff.filter(d => d.type !== 'added');
-        const rightLines = diff.filter(d => d.type !== 'deleted');
-
-        leftHTML = leftLines.map(d =>
-            `<div class="diff-line ${d.type === 'deleted' ? 'diff-deleted' : ''}">${escapeHtml(d.text) || ' '}</div>`
-        ).join('');
-        rightHTML = rightLines.map(d =>
-            `<div class="diff-line ${d.type === 'added' ? 'diff-added' : ''}">${escapeHtml(d.text) || ' '}</div>`
-        ).join('');
+    if (!oldText && !newText) {
+        alert('비교할 본문 내용이 없습니다.\n체크포인트 저장 시 편집기에 본문이 열려 있어야 합니다.');
+        return;
     }
+
+    const { leftHTML, rightHTML } = buildDiffHTML(oldText, newText);
 
     const compareModal = document.createElement('div');
     compareModal.className = 'checkpoint-modal';
     compareModal.innerHTML = `
         <div class="checkpoint-modal-content checkpoint-compare-modal">
             <div class="checkpoint-modal-header">
-                <h3>버전 비교 — ${escapeHtml(checkpoint.message)}</h3>
+                <h3>본문 비교 — ${escapeHtml(checkpoint.message)}</h3>
                 <span class="checkpoint-time" style="font-size:12px; font-weight:400;">${new Date(checkpoint.timestamp).toLocaleString('ko-KR')}</span>
                 <button class="checkpoint-modal-close">×</button>
             </div>
@@ -625,6 +594,32 @@ function compareCheckpoint(episode, checkpointId) {
     document.body.appendChild(compareModal);
     compareModal.querySelector('.checkpoint-modal-close').addEventListener('click', () => compareModal.remove());
     compareModal.addEventListener('click', (e) => { if (e.target === compareModal) compareModal.remove(); });
+}
+
+/**
+ * diff HTML 생성 (LCS, 폴백 포함)
+ */
+function buildDiffHTML(oldText, newText) {
+    const oldLines = oldText.split('\n');
+    const newLines = newText.split('\n');
+    const MAX_LINES = 600;
+
+    if (oldLines.length + newLines.length > MAX_LINES) {
+        return {
+            leftHTML: `<pre class="diff-pre">${escapeHtml(oldText)}</pre>`,
+            rightHTML: `<pre class="diff-pre">${escapeHtml(newText)}</pre>`
+        };
+    }
+
+    const diff = computeLineDiff(oldLines, newLines);
+    const leftHTML = diff.filter(d => d.type !== 'added').map(d =>
+        `<div class="diff-line ${d.type === 'deleted' ? 'diff-deleted' : ''}">${escapeHtml(d.text) || ' '}</div>`
+    ).join('');
+    const rightHTML = diff.filter(d => d.type !== 'deleted').map(d =>
+        `<div class="diff-line ${d.type === 'added' ? 'diff-added' : ''}">${escapeHtml(d.text) || ' '}</div>`
+    ).join('');
+
+    return { leftHTML, rightHTML };
 }
 
 /**

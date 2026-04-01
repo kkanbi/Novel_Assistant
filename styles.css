@@ -3007,7 +3007,8 @@ h4.type-flow        { color: #1aaa82 !important; border-left-color: #1aaa82 !imp
     background: var(--border);
     border-radius: 8px;
     overflow: hidden;
-    height: 100%;
+    flex: 1;
+    min-height: 0;
 }
 
 .diff-panel {
