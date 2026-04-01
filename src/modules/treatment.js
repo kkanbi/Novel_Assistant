@@ -382,6 +382,22 @@ function removeEpisodeTag(item, tag) {
 }
 
 /**
+ * 트리트먼트 회차 제목으로 소설 회차 인덱스 매칭
+ * "2화", "2화 - 제목", "2" 등에서 숫자 추출 후 ep.number로 매칭
+ */
+function findNovelEpisodeIndex(treatmentTitle, vol) {
+    if (!vol || !vol.episodes.length) return -1;
+    const match = treatmentTitle.match(/(\d+)/);
+    if (match) {
+        const num = parseInt(match[1]);
+        const idx = vol.episodes.findIndex(ep => ep.number === num);
+        if (idx !== -1) return idx;
+    }
+    // 번호 매칭 실패 시 제목으로 시도
+    return vol.episodes.findIndex(ep => ep.title === treatmentTitle);
+}
+
+/**
  * 체크포인트 저장
  */
 function saveCheckpoint(partId, sectionId, episodeId) {
@@ -402,10 +418,11 @@ function saveCheckpoint(partId, sectionId, episodeId) {
         episode.checkpoints = [];
     }
 
-    // 현재 편집 중인 본문 가져오기
+    // 트리트먼트 제목으로 소설 회차 매칭해서 본문 가져오기
     const vol = state.project.volumes[state.project.currentVolume];
-    const savedEpisodeIndex = state.currentEpisodeIndex;
-    const currentContent = vol ? (vol.episodes[savedEpisodeIndex]?.content || '') : '';
+    const matchedIndex = findNovelEpisodeIndex(episode.title, vol);
+    const episodeIndex = matchedIndex !== -1 ? matchedIndex : state.currentEpisodeIndex;
+    const currentContent = vol ? (vol.episodes[episodeIndex]?.content || '') : '';
 
     // 현재 상태 스냅샷 생성
     const checkpoint = {
@@ -421,8 +438,7 @@ function saveCheckpoint(partId, sectionId, episodeId) {
             events: episode.events || '',
             characterChange: episode.characterChange || '',
             direction: episode.direction || '',
-            episodeContent: currentContent,
-            episodeIndex: savedEpisodeIndex
+            episodeContent: currentContent
         }
     };
 
@@ -560,12 +576,13 @@ function compareCheckpoint(episode, checkpointId) {
 
     const oldText = checkpoint.data.episodeContent || '';
     const vol = state.project.volumes[state.project.currentVolume];
-    // 저장 시 기록한 에피소드 인덱스 사용 (없으면 현재 인덱스로 폴백)
-    const targetIndex = checkpoint.data.episodeIndex ?? state.currentEpisodeIndex;
+    // 트리트먼트 회차 제목으로 소설 회차 매칭 (항상 올바른 화차와 비교)
+    const matchedIndex = findNovelEpisodeIndex(episode.title, vol);
+    const targetIndex = matchedIndex !== -1 ? matchedIndex : state.currentEpisodeIndex;
     const newText = vol ? (vol.episodes[targetIndex]?.content || '') : '';
 
     if (!oldText && !newText) {
-        alert('비교할 본문 내용이 없습니다.\n체크포인트 저장 시 편집기에 본문이 열려 있어야 합니다.');
+        alert('비교할 본문 내용이 없습니다.\n체크포인트 저장 시 편집기에 해당 화차 본문이 열려 있어야 합니다.');
         return;
     }
 
