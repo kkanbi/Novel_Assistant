@@ -82,6 +82,17 @@ function initApp() {
     // 버튼 이벤트
     document.getElementById('btnNewVolume').addEventListener('click', createNewVolume);
     document.getElementById('btnDownload').addEventListener('click', downloadLocal);
+    document.getElementById('btnExportText').addEventListener('click', showExportModal);
+
+    // 텍스트 내보내기 모달 이벤트
+    document.getElementById('btnExportCancel').addEventListener('click', closeExportModal);
+    document.getElementById('exportModal').addEventListener('click', (e) => {
+        if (e.target.id === 'exportModal') closeExportModal();
+    });
+    document.getElementById('btnExportConfirm').addEventListener('click', exportAsText);
+    document.querySelectorAll('input[name="exportScope"]').forEach(radio => {
+        radio.addEventListener('change', updateExportEpisodeList);
+    });
 
     // 자동 저장 로드
     loadAutoSave({
@@ -113,24 +124,128 @@ function loadProjectSettings() {
 }
 
 /**
- * 로컬 다운로드
+ * 로컬 다운로드 (JSON)
  */
 function downloadLocal() {
-    // saveCurrentEpisode();
-
     const data = {
         ...state.project,
         savedAt: new Date().toISOString()
     };
 
-    const filename = `${state.project.title || '소설'}_${state.project.currentVolume}권.json`;
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const vol = state.project.volumes[state.project.currentVolume];
+    const writtenCount = vol ? vol.episodes.filter(ep => ep.content.trim().length > 0).length : 0;
+    const today = new Date().toISOString().split('T')[0];
+    const filename = `${state.project.title || '소설'}_${today}_${writtenCount}화.json`;
+
+    triggerDownload(JSON.stringify(data, null, 2), filename, 'application/json');
+}
+
+/**
+ * 다운로드 트리거 헬퍼
+ */
+function triggerDownload(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+}
+
+/**
+ * 텍스트 내보내기 모달 열기
+ */
+function showExportModal() {
+    document.getElementById('exportModal').classList.add('active');
+    document.querySelector('input[name="exportScope"][value="volume"]').checked = true;
+    updateExportEpisodeList();
+}
+
+/**
+ * 텍스트 내보내기 모달 닫기
+ */
+function closeExportModal() {
+    document.getElementById('exportModal').classList.remove('active');
+}
+
+/**
+ * 회차 선택 목록 업데이트
+ */
+function updateExportEpisodeList() {
+    const scope = document.querySelector('input[name="exportScope"]:checked').value;
+    const listEl = document.getElementById('exportEpisodeList');
+
+    if (scope !== 'select') {
+        listEl.style.display = 'none';
+        return;
+    }
+
+    const vol = state.project.volumes[state.project.currentVolume];
+    if (!vol) return;
+
+    listEl.style.display = 'block';
+    listEl.innerHTML = vol.episodes.map((ep, idx) => `
+        <label style="display:flex; align-items:center; gap:8px; padding:4px 0; cursor:pointer; font-size:13px;">
+            <input type="checkbox" class="export-ep-checkbox" data-idx="${idx}" checked>
+            ${ep.number}화${ep.title ? ' — ' + ep.title : ''}
+            <span style="margin-left:auto; color:var(--text-muted); font-size:11px;">${ep.content.replace(/\s/g, '').length.toLocaleString()}자</span>
+        </label>
+    `).join('');
+}
+
+/**
+ * 텍스트 내보내기 실행
+ */
+function exportAsText() {
+    const scope = document.querySelector('input[name="exportScope"]:checked').value;
+    const vol = state.project.volumes[state.project.currentVolume];
+    if (!vol) return;
+
+    const volNum = state.project.currentVolume;
+    const title = state.project.title || '소설';
+
+    if (scope === 'volume') {
+        // 1권 전체 → 하나의 파일
+        const content = vol.episodes
+            .filter(ep => ep.content.trim().length > 0)
+            .map(ep => `■ ${ep.number}화${ep.title ? ' — ' + ep.title : ''}\n\n${ep.content}`)
+            .join('\n\n' + '─'.repeat(40) + '\n\n');
+        triggerDownload(content, `${title}_${volNum}권_전체.txt`, 'text/plain;charset=utf-8');
+
+    } else if (scope === 'episodes') {
+        // 회차별 개별 파일
+        const eps = vol.episodes.filter(ep => ep.content.trim().length > 0);
+        eps.forEach((ep, i) => {
+            setTimeout(() => {
+                const content = `■ ${ep.number}화${ep.title ? ' — ' + ep.title : ''}\n\n${ep.content}`;
+                triggerDownload(content, `${title}_${volNum}권_${ep.number}화.txt`, 'text/plain;charset=utf-8');
+            }, i * 200);
+        });
+
+    } else if (scope === 'select') {
+        // 선택한 회차만
+        const checked = [...document.querySelectorAll('.export-ep-checkbox:checked')].map(cb => parseInt(cb.dataset.idx));
+        if (checked.length === 0) { alert('내보낼 회차를 선택해주세요.'); return; }
+
+        if (checked.length === 1) {
+            // 1개 선택 시 단일 파일
+            const ep = vol.episodes[checked[0]];
+            const content = `■ ${ep.number}화${ep.title ? ' — ' + ep.title : ''}\n\n${ep.content}`;
+            triggerDownload(content, `${title}_${volNum}권_${ep.number}화.txt`, 'text/plain;charset=utf-8');
+        } else {
+            // 여러 개 → 개별 파일로 순차 다운로드
+            checked.forEach((idx, i) => {
+                const ep = vol.episodes[idx];
+                setTimeout(() => {
+                    const content = `■ ${ep.number}화${ep.title ? ' — ' + ep.title : ''}\n\n${ep.content}`;
+                    triggerDownload(content, `${title}_${volNum}권_${ep.number}화.txt`, 'text/plain;charset=utf-8');
+                }, i * 200);
+            });
+        }
+    }
+
+    closeExportModal();
 }
 
 // 앱 시작

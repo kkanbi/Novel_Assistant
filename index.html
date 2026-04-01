@@ -60,6 +60,7 @@
                     </div>
                     <button class="btn btn-secondary" id="btnNewVolume">📖 새 권 만들기</button>
                     <button class="btn btn-secondary" id="btnDownload" style="font-size: 11px;">💾 로컬 다운로드</button>
+                    <button class="btn btn-secondary" id="btnExportText" style="font-size: 11px;">📝 텍스트 내보내기</button>
                 </div>
             </div>
         </aside>
@@ -561,6 +562,32 @@
             <div class="modal-buttons">
                 <button class="btn btn-secondary" id="btnModalCancel">취소</button>
                 <button class="btn btn-primary" id="btnModalOpen" disabled>열기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 텍스트 내보내기 모달 -->
+    <div class="modal-overlay" id="exportModal">
+        <div class="modal">
+            <h3>📝 텍스트 내보내기</h3>
+            <div style="margin-bottom: 16px;">
+                <label style="display:block; margin-bottom: 8px; font-weight: 600; font-size: 13px;">내보낼 범위</label>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px;">
+                        <input type="radio" name="exportScope" value="volume" checked> 1권 전체 (하나의 파일)
+                    </label>
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px;">
+                        <input type="radio" name="exportScope" value="episodes"> 회차별 개별 파일
+                    </label>
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px;">
+                        <input type="radio" name="exportScope" value="select"> 회차 선택
+                    </label>
+                </div>
+            </div>
+            <div id="exportEpisodeList" style="display:none; max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin-bottom: 16px;"></div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="btnExportCancel">취소</button>
+                <button class="btn btn-primary" id="btnExportConfirm">내보내기</button>
             </div>
         </div>
     </div>
