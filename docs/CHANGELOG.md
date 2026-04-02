@@ -1,6 +1,72 @@
 # 소설 작성기 변경 이력
 
-## [v0.6.0] - 2026-03-31 🌐 (GitHub Pages 배포)
+## [v0.7.0] - 2026-04-02 ✏️ (에디터/트리트먼트 기능 개선)
+
+### 🐛 버그 수정
+
+- **회차 목록 글자수 실시간 업데이트** (`editor.js`)
+  - 본문 타이핑 시 왼쪽 회차 목록의 글자수가 즉시 반영되지 않던 문제 수정
+  - `handleContentChange()`에서 active 아이템 DOM 직접 갱신으로 해결
+
+- **트리트먼트 체크포인트/버전히스토리 버튼 미동작** (`treatment.js`)
+  - `handleTreeAction()`에 `save-checkpoint`, `view-history` 케이스 누락 → 추가
+
+- **대시보드 volumes 키 오류** (`dashboard.js`)
+  - `updateEpisodeProgress()`, `updateWordCloud()` 에서 `volumes['volume1']` 잘못된 키 사용
+  - `volumes[currentVolume]`(숫자 키)로 수정 → 회차 완성도, 단어 클라우드 정상화
+
+- **체크포인트 비교 시 잘못된 회차 표시** (`treatment.js`)
+  - 에디터에 열린 화차 기준으로 비교하던 문제 수정
+  - 트리트먼트 회차 제목에서 숫자 추출 → 소설 회차 자동 매칭 (`findNovelEpisodeIndex()`)
+
+- **diff 뷰 스크롤 미동작** (`styles.css`)
+  - `.diff-panel`에 `min-height: 0`, `overflow: hidden` 추가
+  - `.diff-panel-body`에 `flex: 1`, `min-height: 0` 추가
+
+### ✨ 새 기능
+
+- **JSON 저장 파일명 개선** (`main.js`)
+  - 기존: `소설이름_1권.json` → 변경: `소설이름_2026-04-02_3화.json`
+  - 브라우저 다운로드 폴더에서 `(1)`, `(2)` 중복 방지
+
+- **텍스트 내보내기** (`main.js`, `index.html`)
+  - 왼쪽 패널에 "📝 텍스트 내보내기" 버튼 추가
+  - 옵션: 1권 전체 / 회차별 개별 파일 / 회차 직접 선택
+  - 출력 형식: `소설이름_1권_전체.txt` 또는 `소설이름_1권_1화.txt`
+
+- **체크포인트 비교 → 본문 diff 뷰** (`treatment.js`, `styles.css`)
+  - 트리트먼트 필드(메모/요약/배경) 비교 → 실제 소설 본문 텍스트 diff로 전면 교체
+  - LCS 알고리즘 기반 라인 단위 diff
+  - 삭제된 줄: 왼쪽 패널 빨간 배경 + 취소선 / 추가된 줄: 오른쪽 패널 초록 배경
+  - diff 전 공백·줄바꿈 정규화 → 단순 줄바꿈 변경은 차이로 표시 안 함
+
+- **삭제 문단 단위 복원** (`treatment.js`)
+  - 비교 뷰에서 삭제된 청크마다 "↩ 이 부분 복원" 버튼 표시
+  - 클릭 시 해당 텍스트를 현재 본문에 삽입 후 비교창 자동 갱신
+  - 앵커(삭제 직전 same 라인) 기반 삽입 위치 자동 탐색
+
+### 📝 변경 사항
+
+- **이번권 진행 글자수** (`episodes.js`)
+  - 공백 제외(`charCount`) → 공백 포함(`content.length`)으로 변경
+
+### 📁 수정 파일
+- `src/modules/editor.js`
+- `src/modules/episodes.js`
+- `src/modules/dashboard.js`
+- `src/modules/treatment.js`
+- `src/main.js`
+- `index.html`
+- `styles.css`
+
+### 📝 세션 기록 (2026-04-02)
+- 에디터 UX 개선 및 트리트먼트 체크포인트 기능 완성
+- 대시보드 버그 수정으로 회차 완성도/단어 클라우드 정상화
+- 체크포인트 비교를 본문 diff + 문단 복원 기능으로 업그레이드
+
+---
+
+
 
 ### ✨ 새 기능
 - **GitHub Pages 자동 배포**: `.github/workflows/deploy.yml` 추가
