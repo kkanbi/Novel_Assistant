@@ -751,7 +751,7 @@ function restoreCheckpoint(episode, checkpointId, historyModal) {
         return;
     }
 
-    // 복원
+    // 트리트먼트 메타데이터 복원
     episode.title = checkpoint.data.title;
     episode.tags = [...checkpoint.data.tags];
     episode.memo = checkpoint.data.memo;
@@ -760,6 +760,29 @@ function restoreCheckpoint(episode, checkpointId, historyModal) {
     episode.events = checkpoint.data.events;
     episode.characterChange = checkpoint.data.characterChange;
     episode.direction = checkpoint.data.direction;
+
+    // 소설 본문 복원
+    const restoredContent = checkpoint.data.episodeContent;
+    if (restoredContent !== undefined) {
+        const vol = state.project.volumes[state.project.currentVolume];
+        const matchedIndex = findNovelEpisodeIndex(episode.title, vol);
+        const targetIndex = matchedIndex !== -1 ? matchedIndex : state.currentEpisodeIndex;
+        const novelEp = vol ? vol.episodes[targetIndex] : null;
+        if (novelEp) {
+            novelEp.content = restoredContent;
+            novelEp.charCount = restoredContent.replace(/\s/g, '').length;
+
+            // 에디터가 이 회차를 보여주고 있으면 텍스트 갱신
+            const editorEl = document.getElementById('episodeContent');
+            if (editorEl && state.currentEpisodeIndex === targetIndex) {
+                editorEl.value = restoredContent;
+            }
+            const activeCharsEl = document.querySelector('.episode-item.active .episode-chars');
+            if (activeCharsEl && state.currentEpisodeIndex === targetIndex) {
+                activeCharsEl.textContent = `${restoredContent.length.toLocaleString()} / ${novelEp.charCount.toLocaleString()}자`;
+            }
+        }
+    }
 
     renderTreatmentTree();
     autoSaveLocal();
