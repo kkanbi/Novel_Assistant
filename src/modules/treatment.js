@@ -18,6 +18,24 @@ export function initTreatment(elements) {
     els = elements;
     ensureTreatment();
 
+    // 뷰 토글 버튼
+    document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchView(btn.dataset.view));
+    });
+
+    // 화 요약 뷰 인라인 편집
+    els.treatmentSummary.addEventListener('input', (e) => {
+        if (e.target.classList.contains('summary-episode-textarea')) {
+            const row = e.target.closest('.summary-episode-row');
+            const field = e.target.dataset.episodeField;
+            updateEpisodeField(row, field, e.target.value);
+            autoSaveLocal();
+            // 자동 높이 조절
+            e.target.style.height = 'auto';
+            e.target.style.height = e.target.scrollHeight + 'px';
+        }
+    });
+
     // 트리 클릭 이벤트
     els.treatmentTree.addEventListener('click', (e) => {
         // 액션 버튼 처리
@@ -909,6 +927,118 @@ function generateSimpleComparisonHTML(label, oldValue, newValue) {
             </div>
         </div>
     `;
+}
+
+/**
+ * 트리뷰 ↔ 화 요약 뷰 전환
+ */
+function switchView(view) {
+    const isTree = view === 'tree';
+    els.treatmentTree.style.display = isTree ? '' : 'none';
+    els.treatmentSummary.style.display = isTree ? 'none' : '';
+    const footer = document.getElementById('treatmentFooter');
+    if (footer) footer.style.display = isTree ? '' : 'none';
+    document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === view);
+    });
+    if (isTree) {
+        renderTreatmentTree();
+    } else {
+        renderSummaryView();
+    }
+}
+
+/**
+ * 화 요약 뷰 렌더링 (줄 노트 스타일)
+ */
+function renderSummaryView() {
+    ensureTreatment();
+    const container = els.treatmentSummary;
+    container.innerHTML = '';
+
+    let globalEpNum = 0;
+
+    state.project.treatment.parts.forEach(part => {
+        (part.sections || []).forEach(section => {
+            // 섹션 헤더
+            const sectionHeader = document.createElement('div');
+            sectionHeader.className = 'summary-section-header';
+            sectionHeader.textContent = `${part.title}  /  ${section.title}`;
+            container.appendChild(sectionHeader);
+
+            const episodes = section.episodes || [];
+            if (episodes.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'summary-empty';
+                empty.textContent = '회차가 없습니다';
+                container.appendChild(empty);
+                return;
+            }
+
+            episodes.forEach(episode => {
+                globalEpNum++;
+
+                const row = document.createElement('div');
+                row.className = 'summary-episode-row';
+                row.dataset.partId = part.id;
+                row.dataset.sectionId = section.id;
+                row.dataset.episodeId = episode.id;
+
+                // 메타 행: 번호 + 제목 + 태그
+                const meta = document.createElement('div');
+                meta.className = 'summary-episode-meta';
+
+                const numBadge = document.createElement('span');
+                numBadge.className = 'summary-episode-num';
+                numBadge.textContent = globalEpNum;
+
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'summary-episode-title';
+                titleSpan.textContent = episode.title;
+
+                const tagsWrap = document.createElement('div');
+                tagsWrap.className = 'summary-episode-tags';
+                (episode.tags || []).forEach(tag => {
+                    const tagEl = document.createElement('span');
+                    tagEl.className = 'summary-tag';
+                    tagEl.textContent = tag;
+                    tagsWrap.appendChild(tagEl);
+                });
+
+                meta.appendChild(numBadge);
+                meta.appendChild(titleSpan);
+                meta.appendChild(tagsWrap);
+
+                // 요약 textarea
+                const textarea = document.createElement('textarea');
+                textarea.className = 'summary-episode-textarea';
+                textarea.dataset.episodeField = 'summary';
+                textarea.placeholder = '전개 요약을 입력하세요...';
+                textarea.value = episode.summary || '';
+                // 초기 높이 자동 조절
+                textarea.rows = 2;
+
+                row.appendChild(meta);
+                row.appendChild(textarea);
+                container.appendChild(row);
+
+                // 렌더 후 높이 조절 (스크롤 높이 기반)
+                requestAnimationFrame(() => {
+                    if (textarea.scrollHeight > textarea.clientHeight) {
+                        textarea.style.height = textarea.scrollHeight + 'px';
+                    }
+                });
+            });
+        });
+    });
+
+    if (globalEpNum === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'summary-empty';
+        empty.style.padding = '20px 16px';
+        empty.textContent = '트리뷰에서 회차를 추가하세요.';
+        container.appendChild(empty);
+    }
 }
 
 export function getTreatmentText() {

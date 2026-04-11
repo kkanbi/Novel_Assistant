@@ -283,10 +283,15 @@
                 
                 <!-- 트리트먼트 (트리뷰) -->
                 <div class="sub-tab-content" data-sub-content="treatment">
+                    <div class="treatment-toolbar">
+                        <button class="view-toggle-btn active" data-view="tree">트리뷰</button>
+                        <button class="view-toggle-btn" data-view="summary">화 요약</button>
+                    </div>
                     <div class="tree-container" id="treatmentTree">
                         <!-- 트리 항목들이 여기에 동적으로 추가됨 -->
                     </div>
-                    <div style="padding: 0 10px 10px 10px;">
+                    <div class="summary-container" id="treatmentSummary"></div>
+                    <div id="treatmentFooter" style="padding: 0 10px 10px 10px;">
                         <button class="tree-add-btn" id="addTreatmentPart">+ 부 추가</button>
                     </div>
                 </div>
