@@ -51,8 +51,7 @@ const els = {
     emojiPicker: document.getElementById('emojiPicker'),
     worldTags: document.getElementById('worldTags'),
     worldAccordion: document.getElementById('worldAccordion'),
-    treatmentTree: document.getElementById('treatmentTree'),
-    treatmentSummary: document.getElementById('treatmentSummary')
+    treatmentTree: document.getElementById('treatmentTree')
 };
 
 // ============ 앱 초기화 ============

@@ -18,24 +18,6 @@ export function initTreatment(elements) {
     els = elements;
     ensureTreatment();
 
-    // 뷰 토글 버튼
-    document.querySelectorAll('.view-toggle-btn').forEach(btn => {
-        btn.addEventListener('click', () => switchView(btn.dataset.view));
-    });
-
-    // 화 요약 뷰 인라인 편집
-    els.treatmentSummary.addEventListener('input', (e) => {
-        if (e.target.classList.contains('summary-episode-textarea')) {
-            const row = e.target.closest('.summary-episode-row');
-            const field = e.target.dataset.episodeField;
-            updateEpisodeField(row, field, e.target.value);
-            autoSaveLocal();
-            // 자동 높이 조절
-            e.target.style.height = 'auto';
-            e.target.style.height = e.target.scrollHeight + 'px';
-        }
-    });
-
     // 트리 클릭 이벤트
     els.treatmentTree.addEventListener('click', (e) => {
         // 액션 버튼 처리
@@ -111,12 +93,13 @@ export function renderTreatmentTree() {
         }];
     }
 
+    const counter = { n: 0 };
     state.project.treatment.parts.forEach(part => {
-        els.treatmentTree.appendChild(createPartElement(part));
+        els.treatmentTree.appendChild(createPartElement(part, counter));
     });
 }
 
-function createPartElement(part) {
+function createPartElement(part, counter) {
     const item = document.createElement('div');
     item.className = 'tree-item open';
     item.dataset.partId = part.id;
@@ -137,13 +120,13 @@ function createPartElement(part) {
 
     const children = item.querySelector('.tree-children');
     (part.sections || []).forEach(section => {
-        children.appendChild(createSectionElement(part.id, section));
+        children.appendChild(createSectionElement(part.id, section, counter));
     });
 
     return item;
 }
 
-function createSectionElement(partId, section) {
+function createSectionElement(partId, section, counter) {
     const item = document.createElement('div');
     item.className = 'tree-item open';
     item.dataset.partId = partId;
@@ -165,39 +148,38 @@ function createSectionElement(partId, section) {
 
     const children = item.querySelector('.tree-children');
     (section.episodes || []).forEach(episode => {
-        children.appendChild(createEpisodeElement(partId, section.id, episode));
+        counter.n++;
+        children.appendChild(createEpisodeElement(partId, section.id, episode, counter.n));
     });
 
     return item;
 }
 
-function createEpisodeElement(partId, sectionId, episode) {
+function createEpisodeElement(partId, sectionId, episode, epNum) {
     const item = document.createElement('div');
     item.className = 'tree-item leaf';
     item.dataset.partId = partId;
     item.dataset.sectionId = sectionId;
     item.dataset.episodeId = episode.id;
 
-    const episodeData = {
-        summary: episode.summary || episode.content || '',
-        setting: episode.setting || '',
-        events: episode.events || '',
-        characterChange: episode.characterChange || '',
-        direction: episode.direction || '',
-        tags: episode.tags || [],
-        memo: episode.memo || ''
-    };
+    const tags = episode.tags || [];
 
-    // 태그 HTML 생성
-    const tagsHtml = episodeData.tags.map(tag =>
+    // 헤더용 태그 배지 (읽기 전용)
+    const headerTagsHtml = tags.map(tag =>
+        `<span class="scene-header-tag">${escapeHtml(tag)}</span>`
+    ).join('');
+
+    // 바디용 태그 (편집 가능)
+    const bodyTagsHtml = tags.map(tag =>
         `<span class="episode-tag" data-tag="${tag}">${tag} <button class="episode-tag-remove">×</button></span>`
     ).join('');
 
     item.innerHTML = `
         <div class="tree-header">
             <span class="tree-toggle">▶</span>
-            <span class="tree-icon">📄</span>
+            <span class="scene-ep-num">${epNum}</span>
             <span class="tree-label">${episode.title}</span>
+            <div class="scene-header-tags">${headerTagsHtml}</div>
             <div class="tree-actions">
                 <button class="tree-action-btn" data-action="save-checkpoint" title="체크포인트 저장">💾</button>
                 <button class="tree-action-btn" data-action="view-history" title="버전 히스토리">📋</button>
@@ -209,29 +191,33 @@ function createEpisodeElement(partId, sectionId, episode) {
             <div class="treatment-episode-section">
                 <label class="treatment-episode-label">태그</label>
                 <div class="episode-tags-container">
-                    ${tagsHtml}
+                    ${bodyTagsHtml}
                     <button class="episode-tag-add">+ 태그 추가</button>
                 </div>
             </div>
             <div class="treatment-episode-section">
-                <label class="treatment-episode-label">메모</label>
-                <textarea class="tree-textarea" data-episode-field="memo" placeholder="이 회차에 대한 메모를 작성하세요...">${episodeData.memo}</textarea>
-            </div>
-            <div class="treatment-episode-section">
-                <label class="treatment-episode-label">배경</label>
-                <textarea class="tree-textarea" data-episode-field="setting" placeholder="시간, 장소, 분위기...">${episodeData.setting}</textarea>
+                <label class="treatment-episode-label">배경 (시간 · 공간)</label>
+                <textarea class="tree-textarea" data-episode-field="setting" placeholder="시간, 장소, 분위기...">${episode.setting || ''}</textarea>
             </div>
             <div class="treatment-episode-section">
                 <label class="treatment-episode-label">사건</label>
-                <textarea class="tree-textarea" data-episode-field="events" placeholder="주요 사건들...">${episodeData.events}</textarea>
+                <textarea class="tree-textarea" data-episode-field="events" placeholder="주요 사건들...">${episode.events || ''}</textarea>
             </div>
             <div class="treatment-episode-section">
-                <label class="treatment-episode-label">캐릭터 심리 변화</label>
-                <textarea class="tree-textarea" data-episode-field="characterChange" placeholder="심리적 변화, 태도 변화...">${episodeData.characterChange}</textarea>
+                <label class="treatment-episode-label">심리 변화</label>
+                <textarea class="tree-textarea" data-episode-field="characterChange" placeholder="심리적 변화, 태도 변화...">${episode.characterChange || ''}</textarea>
+            </div>
+            <div class="treatment-episode-section">
+                <label class="treatment-episode-label">전개 요약</label>
+                <textarea class="tree-textarea" data-episode-field="summary" placeholder="이 회차의 전개를 작성하세요...">${episode.summary || episode.content || ''}</textarea>
             </div>
             <div class="treatment-episode-section">
                 <label class="treatment-episode-label">연출 가이드</label>
-                <textarea class="tree-textarea" data-episode-field="direction" placeholder="묘사 가이드...">${episodeData.direction}</textarea>
+                <textarea class="tree-textarea" data-episode-field="direction" placeholder="묘사 가이드...">${episode.direction || ''}</textarea>
+            </div>
+            <div class="treatment-episode-section">
+                <label class="treatment-episode-label">메모</label>
+                <textarea class="tree-textarea" data-episode-field="memo" placeholder="이 회차에 대한 메모를 작성하세요...">${episode.memo || ''}</textarea>
             </div>
         </div>
     `;
@@ -923,118 +909,6 @@ function generateSimpleComparisonHTML(label, oldValue, newValue) {
             </div>
         </div>
     `;
-}
-
-/**
- * 트리뷰 ↔ 화 요약 뷰 전환
- */
-function switchView(view) {
-    const isTree = view === 'tree';
-    els.treatmentTree.style.display = isTree ? '' : 'none';
-    els.treatmentSummary.style.display = isTree ? 'none' : 'block';
-    const footer = document.getElementById('treatmentFooter');
-    if (footer) footer.style.display = isTree ? '' : 'none';
-    document.querySelectorAll('.view-toggle-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.view === view);
-    });
-    if (isTree) {
-        renderTreatmentTree();
-    } else {
-        renderSummaryView();
-    }
-}
-
-/**
- * 화 요약 뷰 렌더링 (줄 노트 스타일)
- */
-function renderSummaryView() {
-    ensureTreatment();
-    const container = els.treatmentSummary;
-    container.innerHTML = '';
-
-    let globalEpNum = 0;
-
-    state.project.treatment.parts.forEach(part => {
-        (part.sections || []).forEach(section => {
-            // 섹션 헤더
-            const sectionHeader = document.createElement('div');
-            sectionHeader.className = 'summary-section-header';
-            sectionHeader.textContent = `${part.title}  /  ${section.title}`;
-            container.appendChild(sectionHeader);
-
-            const episodes = section.episodes || [];
-            if (episodes.length === 0) {
-                const empty = document.createElement('div');
-                empty.className = 'summary-empty';
-                empty.textContent = '회차가 없습니다';
-                container.appendChild(empty);
-                return;
-            }
-
-            episodes.forEach(episode => {
-                globalEpNum++;
-
-                const row = document.createElement('div');
-                row.className = 'summary-episode-row';
-                row.dataset.partId = part.id;
-                row.dataset.sectionId = section.id;
-                row.dataset.episodeId = episode.id;
-
-                // 메타 행: 번호 + 제목 + 태그
-                const meta = document.createElement('div');
-                meta.className = 'summary-episode-meta';
-
-                const numBadge = document.createElement('span');
-                numBadge.className = 'summary-episode-num';
-                numBadge.textContent = globalEpNum;
-
-                const titleSpan = document.createElement('span');
-                titleSpan.className = 'summary-episode-title';
-                titleSpan.textContent = episode.title;
-
-                const tagsWrap = document.createElement('div');
-                tagsWrap.className = 'summary-episode-tags';
-                (episode.tags || []).forEach(tag => {
-                    const tagEl = document.createElement('span');
-                    tagEl.className = 'summary-tag';
-                    tagEl.textContent = tag;
-                    tagsWrap.appendChild(tagEl);
-                });
-
-                meta.appendChild(numBadge);
-                meta.appendChild(titleSpan);
-                meta.appendChild(tagsWrap);
-
-                // 요약 textarea
-                const textarea = document.createElement('textarea');
-                textarea.className = 'summary-episode-textarea';
-                textarea.dataset.episodeField = 'summary';
-                textarea.placeholder = '전개 요약을 입력하세요...';
-                textarea.value = episode.summary || '';
-                // 초기 높이 자동 조절
-                textarea.rows = 2;
-
-                row.appendChild(meta);
-                row.appendChild(textarea);
-                container.appendChild(row);
-
-                // 렌더 후 높이 조절 (스크롤 높이 기반)
-                requestAnimationFrame(() => {
-                    if (textarea.scrollHeight > textarea.clientHeight) {
-                        textarea.style.height = textarea.scrollHeight + 'px';
-                    }
-                });
-            });
-        });
-    });
-
-    if (globalEpNum === 0) {
-        const empty = document.createElement('div');
-        empty.className = 'summary-empty';
-        empty.style.padding = '20px 16px';
-        empty.textContent = '트리뷰에서 회차를 추가하세요.';
-        container.appendChild(empty);
-    }
 }
 
 export function getTreatmentText() {

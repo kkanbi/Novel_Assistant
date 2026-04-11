@@ -1986,143 +1986,37 @@ h4.type-flow        { color: #1aaa82 !important; border-left-color: #1aaa82 !imp
     outline: none;
 }
 
-/* 트리트먼트 뷰 토글 툴바 */
-.treatment-toolbar {
-    display: flex;
-    gap: 4px;
-    padding: 8px 10px 6px;
-    border-bottom: 1px solid var(--border);
+/* 씬 카드 헤더 — 번호 배지 + 태그 */
+.scene-ep-num {
     flex-shrink: 0;
-}
-
-.view-toggle-btn {
-    padding: 4px 12px;
-    font-size: 11px;
-    font-family: inherit;
-    border-radius: 4px;
-    border: 1px solid var(--border);
-    background: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.view-toggle-btn:hover {
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
-}
-
-.view-toggle-btn.active {
-    background: var(--accent);
-    color: var(--bg-primary);
-    border-color: var(--accent);
-    font-weight: 600;
-}
-
-/* 화 요약 뷰 (줄 노트 스타일) */
-.summary-container {
-    flex: 1;
-    display: none;
-}
-
-.summary-section-header {
-    padding: 7px 12px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--accent);
-    background: var(--bg-tertiary);
-    border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 1;
-}
-
-.summary-episode-row {
-    padding: 10px 12px 8px;
-    border-bottom: 1px solid var(--border);
-}
-
-.summary-episode-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-}
-
-.summary-episode-num {
-    flex-shrink: 0;
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: var(--bg-tertiary);
+    border: 1px solid var(--border);
     border-radius: 50%;
     font-size: 10px;
     font-weight: 600;
     color: var(--text-muted);
 }
 
-.summary-episode-title {
-    flex: 1;
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-primary);
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.summary-episode-tags {
+.scene-header-tags {
     display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
+    gap: 3px;
     flex-shrink: 0;
+    overflow: hidden;
 }
 
-.summary-tag {
-    padding: 2px 6px;
+.scene-header-tag {
+    padding: 2px 7px;
     background: var(--bg-tertiary);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 8px;
     font-size: 10px;
     color: var(--text-secondary);
-}
-
-.summary-episode-textarea {
-    width: 100%;
-    box-sizing: border-box;
-    background: none;
-    border: none;
-    border-bottom: 1px dashed var(--border);
-    padding: 3px 2px 5px;
-    font-size: 12px;
-    font-family: inherit;
-    line-height: 1.7;
-    color: var(--text-secondary);
-    resize: none;
-    outline: none;
-    overflow: hidden;
-    min-height: 38px;
-}
-
-.summary-episode-textarea:focus {
-    border-bottom-color: var(--accent);
-    color: var(--text-primary);
-}
-
-.summary-episode-textarea::placeholder {
-    color: var(--text-muted);
-}
-
-.summary-empty {
-    padding: 10px 14px;
-    font-size: 11px;
-    color: var(--text-muted);
-    font-style: italic;
+    white-space: nowrap;
 }
 
 /* 트리트먼트 트리뷰 */
@@ -2164,7 +2058,7 @@ h4.type-flow        { color: #1aaa82 !important; border-left-color: #1aaa82 !imp
 }
 
 .tree-item.leaf .tree-toggle {
-    visibility: hidden;
+    visibility: visible;
 }
 
 .tree-icon {
