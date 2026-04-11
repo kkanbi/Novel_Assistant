@@ -10,6 +10,76 @@ function autoResizeTextarea(el) {
 }
 
 /**
+ * 트리 열림/닫힘 상태 저장
+ */
+function saveTreeState() {
+    const openItems = new Set();
+    els.treatmentTree.querySelectorAll('.tree-item.open').forEach(item => {
+        const key = [item.dataset.partId, item.dataset.sectionId, item.dataset.episodeId].filter(Boolean).join('/');
+        if (key) openItems.add(key);
+    });
+
+    const openScenes = new Set();
+    els.treatmentTree.querySelectorAll('.scene-item.open').forEach(item => {
+        if (item.dataset.sceneId) openScenes.add(item.dataset.sceneId);
+    });
+
+    const closedEpSections = new Set();
+    els.treatmentTree.querySelectorAll('.ep-section').forEach(sec => {
+        if (!sec.classList.contains('open')) {
+            const epId = sec.closest('.tree-item')?.dataset.episodeId;
+            const title = sec.querySelector('.ep-section-title')?.textContent;
+            if (epId && title) closedEpSections.add(epId + '/' + title);
+        }
+    });
+
+    const container = els.treatmentTree.closest('.sub-tab-content') || els.treatmentTree.parentElement;
+    const scrollTop = container ? container.scrollTop : 0;
+
+    return { openItems, openScenes, closedEpSections, scrollTop };
+}
+
+/**
+ * 트리 열림/닫힘 상태 복원
+ */
+function restoreTreeState(saved) {
+    if (!saved || saved.openItems.size === 0) return; // 저장된 상태 없으면 기본값 유지
+
+    els.treatmentTree.querySelectorAll('.tree-item').forEach(item => {
+        const key = [item.dataset.partId, item.dataset.sectionId, item.dataset.episodeId].filter(Boolean).join('/');
+        if (saved.openItems.has(key)) {
+            item.classList.add('open');
+        } else {
+            item.classList.remove('open');
+        }
+    });
+
+    els.treatmentTree.querySelectorAll('.scene-item').forEach(item => {
+        if (saved.openScenes.has(item.dataset.sceneId)) {
+            item.classList.add('open');
+        } else {
+            item.classList.remove('open');
+        }
+    });
+
+    els.treatmentTree.querySelectorAll('.ep-section').forEach(sec => {
+        const epId = sec.closest('.tree-item')?.dataset.episodeId;
+        const title = sec.querySelector('.ep-section-title')?.textContent;
+        if (epId && title && saved.closedEpSections.has(epId + '/' + title)) {
+            sec.classList.remove('open');
+        }
+    });
+
+    const container = els.treatmentTree.closest('.sub-tab-content') || els.treatmentTree.parentElement;
+    if (container) container.scrollTop = saved.scrollTop;
+
+    requestAnimationFrame(() => {
+        els.treatmentTree.querySelectorAll('.tree-item.open.leaf .tree-textarea').forEach(autoResizeTextarea);
+        els.treatmentTree.querySelectorAll('.scene-item.open .scene-textarea').forEach(autoResizeTextarea);
+    });
+}
+
+/**
  * 트리 아이템(부/섹션/에피소드) 인라인 이름 편집
  */
 function inlineRename(item) {
@@ -214,6 +284,7 @@ export function initTreatment(elements) {
 
 export function renderTreatmentTree() {
     ensureTreatment();
+    const saved = saveTreeState();
     els.treatmentTree.innerHTML = '';
 
     if (state.project.treatment.parts.length === 0) {
@@ -228,6 +299,8 @@ export function renderTreatmentTree() {
     state.project.treatment.parts.forEach(part => {
         els.treatmentTree.appendChild(createPartElement(part, counter));
     });
+
+    restoreTreeState(saved);
 }
 
 function createPartElement(part, counter) {
@@ -317,16 +390,16 @@ function createEpisodeElement(partId, sectionId, episode, epNum) {
             </div>
             <div class="scene-item-body">
                 <div class="scene-field">
+                    <label class="scene-field-label">기능</label>
+                    <textarea class="scene-textarea" data-scene-field="sceneFunction" placeholder="이 씬의 서사적 기능...">${escapeHtml(scene.sceneFunction || '')}</textarea>
+                </div>
+                <div class="scene-field">
                     <label class="scene-field-label">사건</label>
                     <textarea class="scene-textarea" data-scene-field="events" placeholder="이 씬의 주요 사건...">${escapeHtml(scene.events || '')}</textarea>
                 </div>
                 <div class="scene-field">
                     <label class="scene-field-label">핵심 대사</label>
                     <textarea class="scene-textarea" data-scene-field="dialogue" placeholder="핵심 대사나 문장...">${escapeHtml(scene.dialogue || '')}</textarea>
-                </div>
-                <div class="scene-field">
-                    <label class="scene-field-label">기능</label>
-                    <textarea class="scene-textarea" data-scene-field="sceneFunction" placeholder="이 씬의 서사적 기능...">${escapeHtml(scene.sceneFunction || '')}</textarea>
                 </div>
             </div>
         </div>
