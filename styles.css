@@ -2341,6 +2341,22 @@ h4.type-flow        { color: #1aaa82 !important; border-left-color: #1aaa82 !imp
     color: var(--accent);
 }
 
+/* 인라인 이름 편집 input */
+.inline-rename-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--accent);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    padding: 0 2px;
+    margin: 0;
+    outline: none;
+    width: 100%;
+    min-width: 60px;
+}
+
 /* 씬 카드 에피소드 필드 — 플랫 스타일 (박스 없음) */
 .tree-item.leaf .tree-content .tree-textarea {
     background: none;

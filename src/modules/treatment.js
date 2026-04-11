@@ -9,6 +9,83 @@ function autoResizeTextarea(el) {
     el.style.height = el.scrollHeight + 'px';
 }
 
+/**
+ * 트리 아이템(부/섹션/에피소드) 인라인 이름 편집
+ */
+function inlineRename(item) {
+    const label = item.querySelector(':scope > .tree-header .tree-label');
+    if (!label || label.querySelector('input')) return;
+
+    const partId = item.dataset.partId;
+    const sectionId = item.dataset.sectionId;
+    const episodeId = item.dataset.episodeId;
+    const original = label.textContent;
+
+    const input = document.createElement('input');
+    input.className = 'inline-rename-input';
+    input.value = original;
+    label.textContent = '';
+    label.appendChild(input);
+    input.focus();
+    input.select();
+
+    const save = () => {
+        const name = input.value.trim() || original;
+        label.textContent = name;
+        const part = state.project.treatment.parts.find(p => p.id === partId);
+        if (!part) return;
+        if (episodeId) {
+            const ep = part.sections.find(s => s.id === sectionId)?.episodes.find(e => e.id === episodeId);
+            if (ep) ep.title = name;
+        } else if (sectionId) {
+            const sec = part.sections.find(s => s.id === sectionId);
+            if (sec) sec.title = name;
+        } else {
+            part.title = name;
+        }
+        autoSaveLocal();
+    };
+
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        if (e.key === 'Escape') { label.textContent = original; }
+    });
+}
+
+/**
+ * 씬 아이템 인라인 이름 편집
+ */
+function inlineRenameScene(treeItem, sceneItem) {
+    const titleEl = sceneItem.querySelector('.scene-item-title');
+    if (!titleEl || titleEl.querySelector('input')) return;
+
+    const original = titleEl.textContent;
+    const input = document.createElement('input');
+    input.className = 'inline-rename-input';
+    input.value = original;
+    titleEl.textContent = '';
+    titleEl.appendChild(input);
+    input.focus();
+    input.select();
+
+    const save = () => {
+        const name = input.value.trim() || original;
+        titleEl.textContent = name;
+        const part = state.project.treatment.parts.find(p => p.id === treeItem.dataset.partId);
+        const section = part?.sections.find(s => s.id === treeItem.dataset.sectionId);
+        const episode = section?.episodes.find(ep => ep.id === treeItem.dataset.episodeId);
+        const scene = episode?.scenes?.find(sc => sc.id === sceneItem.dataset.sceneId);
+        if (scene) { scene.title = name; autoSaveLocal(); }
+    };
+
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        if (e.key === 'Escape') { titleEl.textContent = original; }
+    });
+}
+
 function ensureTreatment() {
     if (!state.project || typeof state.project !== 'object') return;
     if (!state.project.treatment || typeof state.project.treatment !== 'object') {
@@ -124,16 +201,14 @@ export function initTreatment(elements) {
     document.getElementById('addTreatmentPart')?.addEventListener('click', () => {
         ensureTreatment();
         const partNum = state.project.treatment.parts.length + 1;
-        const title = prompt('부 이름:', partNum + '부');
-        if (title && title.trim()) {
-            state.project.treatment.parts.push({
-                id: 'part_' + Date.now(),
-                title: title.trim(),
-                sections: []
-            });
-            renderTreatmentTree();
-            autoSaveLocal();
-        }
+        const newId = 'part_' + Date.now();
+        state.project.treatment.parts.push({ id: newId, title: partNum + '부', sections: [] });
+        renderTreatmentTree();
+        autoSaveLocal();
+        requestAnimationFrame(() => {
+            const el = els.treatmentTree.querySelector(`[data-part-id="${newId}"]:not([data-section-id])`);
+            if (el) inlineRename(el);
+        });
     });
 }
 
@@ -324,56 +399,37 @@ function handleTreeAction(action, item) {
     if (!part) return;
 
     if (action === 'add-section') {
-        const title = prompt('섹션 이름:', '승');
-        if (title && title.trim()) {
-            part.sections = part.sections || [];
-            part.sections.push({
-                id: 'sec_' + Date.now(),
-                title: title.trim(),
-                episodes: []
-            });
-            renderTreatmentTree();
-            autoSaveLocal();
-        }
+        part.sections = part.sections || [];
+        const defaultTitles = ['기', '승', '전', '결'];
+        const defaultTitle = defaultTitles[part.sections.length] || ('섹션 ' + (part.sections.length + 1));
+        const newId = 'sec_' + Date.now();
+        part.sections.push({ id: newId, title: defaultTitle, episodes: [] });
+        renderTreatmentTree();
+        autoSaveLocal();
+        requestAnimationFrame(() => {
+            const el = els.treatmentTree.querySelector(`[data-section-id="${newId}"]:not([data-episode-id])`);
+            if (el) inlineRename(el);
+        });
     } else if (action === 'add-episode') {
         const section = part.sections.find(s => s.id === sectionId);
         if (section) {
             const epNum = section.episodes.length + 1;
-            const title = prompt('회차 제목:', epNum + '화');
-            if (title && title.trim()) {
-                section.episodes = section.episodes || [];
-                section.episodes.push({
-                    id: 'ep_' + Date.now(),
-                    title: title.trim(),
-                    tags: [],
-                    memo: '',
-                    summary: '',
-                    setting: '',
-                    events: '',
-                    characterChange: '',
-                    direction: ''
-                });
-                renderTreatmentTree();
-                autoSaveLocal();
-            }
+            const newId = 'ep_' + Date.now();
+            section.episodes = section.episodes || [];
+            section.episodes.push({
+                id: newId, title: epNum + '화',
+                tags: [], memo: '', summary: '', setting: '',
+                events: '', characterChange: '', direction: '', scenes: []
+            });
+            renderTreatmentTree();
+            autoSaveLocal();
+            requestAnimationFrame(() => {
+                const el = els.treatmentTree.querySelector(`[data-episode-id="${newId}"]`);
+                if (el) inlineRename(el);
+            });
         }
     } else if (action === 'rename') {
-        const label = item.querySelector('.tree-label');
-        const newName = prompt('새 이름:', label.textContent);
-        if (newName && newName.trim()) {
-            if (episodeId) {
-                const section = part.sections.find(s => s.id === sectionId);
-                const episode = section.episodes.find(ep => ep.id === episodeId);
-                episode.title = newName.trim();
-            } else if (sectionId) {
-                const section = part.sections.find(s => s.id === sectionId);
-                section.title = newName.trim();
-            } else {
-                part.title = newName.trim();
-            }
-            label.textContent = newName.trim();
-            autoSaveLocal();
-        }
+        inlineRename(item);
     } else if (action === 'delete') {
         if (confirm('삭제할까요?')) {
             if (episodeId) {
@@ -486,17 +542,21 @@ function addScene(item) {
     if (!episode) return;
     if (!episode.scenes) episode.scenes = [];
     const sceneNum = episode.scenes.length + 1;
-    const title = prompt('씬 이름:', '씬 ' + sceneNum);
-    if (title === null) return;
+    const newSceneId = 'scene_' + Date.now();
     episode.scenes.push({
-        id: 'scene_' + Date.now(),
-        title: title.trim() || ('씬 ' + sceneNum),
+        id: newSceneId,
+        title: '씬 ' + sceneNum,
         events: '',
         dialogue: '',
         sceneFunction: ''
     });
     renderTreatmentTree();
     autoSaveLocal();
+    requestAnimationFrame(() => {
+        const treeItem = els.treatmentTree.querySelector(`[data-episode-id="${episodeId}"]`);
+        const sceneItem = treeItem?.querySelector(`[data-scene-id="${newSceneId}"]`);
+        if (treeItem && sceneItem) inlineRenameScene(treeItem, sceneItem);
+    });
 }
 
 /**
@@ -526,14 +586,7 @@ function handleSceneAction(action, treeItem, sceneItem) {
     const episode = section.episodes.find(ep => ep.id === treeItem.dataset.episodeId);
     if (!episode) return;
     if (action === 'rename-scene') {
-        const scene = (episode.scenes || []).find(sc => sc.id === sceneItem.dataset.sceneId);
-        if (!scene) return;
-        const newTitle = prompt('씬 이름:', scene.title);
-        if (newTitle !== null && newTitle.trim()) {
-            scene.title = newTitle.trim();
-            renderTreatmentTree();
-            autoSaveLocal();
-        }
+        inlineRenameScene(treeItem, sceneItem);
     } else if (action === 'delete-scene') {
         if (confirm('이 씬을 삭제할까요?')) {
             episode.scenes = (episode.scenes || []).filter(sc => sc.id !== sceneItem.dataset.sceneId);
