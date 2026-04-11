@@ -218,10 +218,6 @@ function createEpisodeElement(partId, sectionId, episode) {
                 <textarea class="tree-textarea" data-episode-field="memo" placeholder="이 회차에 대한 메모를 작성하세요...">${episodeData.memo}</textarea>
             </div>
             <div class="treatment-episode-section">
-                <label class="treatment-episode-label">전개 요약</label>
-                <textarea class="tree-textarea" data-episode-field="summary" placeholder="이 회차의 전개를 작성하세요...">${episodeData.summary}</textarea>
-            </div>
-            <div class="treatment-episode-section">
                 <label class="treatment-episode-label">배경</label>
                 <textarea class="tree-textarea" data-episode-field="setting" placeholder="시간, 장소, 분위기...">${episodeData.setting}</textarea>
             </div>
@@ -935,7 +931,7 @@ function generateSimpleComparisonHTML(label, oldValue, newValue) {
 function switchView(view) {
     const isTree = view === 'tree';
     els.treatmentTree.style.display = isTree ? '' : 'none';
-    els.treatmentSummary.style.display = isTree ? 'none' : '';
+    els.treatmentSummary.style.display = isTree ? 'none' : 'block';
     const footer = document.getElementById('treatmentFooter');
     if (footer) footer.style.display = isTree ? '' : 'none';
     document.querySelectorAll('.view-toggle-btn').forEach(btn => {
