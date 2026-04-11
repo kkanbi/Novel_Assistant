@@ -25,24 +25,62 @@ export function initTreatment(elements) {
 
     // 트리 클릭 이벤트
     els.treatmentTree.addEventListener('click', (e) => {
-        // 액션 버튼 처리
-        const actionBtn = e.target.closest('.tree-action-btn');
-        if (actionBtn) {
+        // 씬 액션 버튼 (tree-action-btn보다 먼저 체크)
+        const sceneActionBtn = e.target.closest('.scene-action-btn');
+        if (sceneActionBtn) {
             e.stopPropagation();
-            const action = actionBtn.dataset.action;
-            const item = actionBtn.closest('.tree-item');
-            handleTreeAction(action, item);
+            handleSceneAction(sceneActionBtn.dataset.action,
+                sceneActionBtn.closest('.tree-item'),
+                sceneActionBtn.closest('.scene-item'));
             return;
         }
 
-        // 헤더 클릭 시 토글
+        // 트리 액션 버튼 (저장, 히스토리, 이름변경, 삭제)
+        const actionBtn = e.target.closest('.tree-action-btn');
+        if (actionBtn) {
+            e.stopPropagation();
+            handleTreeAction(actionBtn.dataset.action, actionBtn.closest('.tree-item'));
+            return;
+        }
+
+        // 에피소드 내 섹션 헤더 (갈색 제목) 접기/펼치기
+        const epSectionHeader = e.target.closest('.ep-section-header');
+        if (epSectionHeader) {
+            e.stopPropagation();
+            epSectionHeader.closest('.ep-section').classList.toggle('open');
+            return;
+        }
+
+        // 씬 아이템 헤더 접기/펼치기
+        const sceneHeader = e.target.closest('.scene-item-header');
+        if (sceneHeader) {
+            e.stopPropagation();
+            const sceneItem = sceneHeader.closest('.scene-item');
+            sceneItem.classList.toggle('open');
+            if (sceneItem.classList.contains('open')) {
+                requestAnimationFrame(() => {
+                    sceneItem.querySelectorAll('.scene-textarea').forEach(autoResizeTextarea);
+                });
+            }
+            return;
+        }
+
+        // 씬 추가 버튼
+        if (e.target.classList.contains('scene-add-btn')) {
+            e.stopPropagation();
+            addScene(e.target.closest('.tree-item'));
+            return;
+        }
+
+        // tree-header 클릭 (에피소드/섹션/부 펼치기·접기)
         const header = e.target.closest('.tree-header');
         if (header) {
             const item = header.closest('.tree-item');
             item.classList.toggle('open');
-            // 에피소드 펼쳐질 때 textarea 높이 초기화
             if (item.classList.contains('open') && item.classList.contains('leaf')) {
-                item.querySelectorAll('.tree-textarea').forEach(autoResizeTextarea);
+                requestAnimationFrame(() => {
+                    item.querySelectorAll('.tree-textarea').forEach(autoResizeTextarea);
+                });
             }
         }
     });
@@ -51,8 +89,16 @@ export function initTreatment(elements) {
     els.treatmentTree.addEventListener('input', (e) => {
         if (e.target.classList.contains('tree-textarea')) {
             const item = e.target.closest('.tree-item');
-            const field = e.target.dataset.episodeField;
-            updateEpisodeField(item, field, e.target.value);
+            updateEpisodeField(item, e.target.dataset.episodeField, e.target.value);
+            autoResizeTextarea(e.target);
+        }
+        if (e.target.classList.contains('scene-textarea')) {
+            updateSceneField(
+                e.target.closest('.tree-item'),
+                e.target.closest('.scene-item'),
+                e.target.dataset.sceneField,
+                e.target.value
+            );
             autoResizeTextarea(e.target);
         }
     });
@@ -173,16 +219,43 @@ function createEpisodeElement(partId, sectionId, episode, epNum) {
     item.dataset.episodeId = episode.id;
 
     const tags = episode.tags || [];
+    const scenes = episode.scenes || [];
 
-    // 헤더용 태그 배지 (읽기 전용)
     const headerTagsHtml = tags.map(tag =>
         `<span class="scene-header-tag">${escapeHtml(tag)}</span>`
     ).join('');
 
-    // 바디용 태그 (편집 가능)
     const bodyTagsHtml = tags.map(tag =>
         `<span class="episode-tag" data-tag="${tag}">${tag} <button class="episode-tag-remove">×</button></span>`
     ).join('');
+
+    const scenesHtml = scenes.map((scene, idx) => `
+        <div class="scene-item" data-scene-id="${scene.id}">
+            <div class="scene-item-header">
+                <span class="scene-item-toggle">▶</span>
+                <span class="scene-item-num">${idx + 1}</span>
+                <span class="scene-item-title">${escapeHtml(scene.title || ('씬 ' + (idx + 1)))}</span>
+                <div class="scene-item-actions">
+                    <button class="scene-action-btn" data-action="rename-scene">✏️</button>
+                    <button class="scene-action-btn" data-action="delete-scene">🗑️</button>
+                </div>
+            </div>
+            <div class="scene-item-body">
+                <div class="scene-field">
+                    <label class="scene-field-label">사건</label>
+                    <textarea class="scene-textarea" data-scene-field="events" placeholder="이 씬의 주요 사건...">${escapeHtml(scene.events || '')}</textarea>
+                </div>
+                <div class="scene-field">
+                    <label class="scene-field-label">핵심 대사</label>
+                    <textarea class="scene-textarea" data-scene-field="dialogue" placeholder="핵심 대사나 문장...">${escapeHtml(scene.dialogue || '')}</textarea>
+                </div>
+                <div class="scene-field">
+                    <label class="scene-field-label">기능</label>
+                    <textarea class="scene-textarea" data-scene-field="sceneFunction" placeholder="이 씬의 서사적 기능...">${escapeHtml(scene.sceneFunction || '')}</textarea>
+                </div>
+            </div>
+        </div>
+    `).join('');
 
     item.innerHTML = `
         <div class="tree-header">
@@ -205,29 +278,36 @@ function createEpisodeElement(partId, sectionId, episode, epNum) {
                     <button class="episode-tag-add">+ 태그 추가</button>
                 </div>
             </div>
-            <div class="treatment-episode-section">
-                <label class="treatment-episode-label">배경 (시간 · 공간)</label>
-                <textarea class="tree-textarea" data-episode-field="setting" placeholder="시간, 장소, 분위기...">${episode.setting || ''}</textarea>
+
+            <div class="ep-section open">
+                <div class="ep-section-header">
+                    <span class="ep-section-toggle">▶</span>
+                    <span class="ep-section-title">씬 구성</span>
+                </div>
+                <div class="ep-section-body">
+                    <div class="scene-list">${scenesHtml}</div>
+                    <button class="scene-add-btn">+ 씬 추가</button>
+                </div>
             </div>
-            <div class="treatment-episode-section">
-                <label class="treatment-episode-label">사건</label>
-                <textarea class="tree-textarea" data-episode-field="events" placeholder="주요 사건들...">${episode.events || ''}</textarea>
+
+            <div class="ep-section open">
+                <div class="ep-section-header">
+                    <span class="ep-section-toggle">▶</span>
+                    <span class="ep-section-title">연출 가이드</span>
+                </div>
+                <div class="ep-section-body">
+                    <textarea class="tree-textarea" data-episode-field="direction" placeholder="묘사 가이드...">${episode.direction || ''}</textarea>
+                </div>
             </div>
-            <div class="treatment-episode-section">
-                <label class="treatment-episode-label">심리 변화</label>
-                <textarea class="tree-textarea" data-episode-field="characterChange" placeholder="심리적 변화, 태도 변화...">${episode.characterChange || ''}</textarea>
-            </div>
-            <div class="treatment-episode-section">
-                <label class="treatment-episode-label">전개 요약</label>
-                <textarea class="tree-textarea" data-episode-field="summary" placeholder="이 회차의 전개를 작성하세요...">${episode.summary || episode.content || ''}</textarea>
-            </div>
-            <div class="treatment-episode-section">
-                <label class="treatment-episode-label">연출 가이드</label>
-                <textarea class="tree-textarea" data-episode-field="direction" placeholder="묘사 가이드...">${episode.direction || ''}</textarea>
-            </div>
-            <div class="treatment-episode-section">
-                <label class="treatment-episode-label">메모</label>
-                <textarea class="tree-textarea" data-episode-field="memo" placeholder="이 회차에 대한 메모를 작성하세요...">${episode.memo || ''}</textarea>
+
+            <div class="ep-section open">
+                <div class="ep-section-header">
+                    <span class="ep-section-toggle">▶</span>
+                    <span class="ep-section-title">메모</span>
+                </div>
+                <div class="ep-section-body">
+                    <textarea class="tree-textarea" data-episode-field="memo" placeholder="이 회차에 대한 메모...">${episode.memo || ''}</textarea>
+                </div>
             </div>
         </div>
     `;
@@ -389,6 +469,78 @@ function removeEpisodeTag(item, tag) {
     episode.tags = episode.tags.filter(t => t !== tag);
     renderTreatmentTree();
     autoSaveLocal();
+}
+
+/**
+ * 씬 추가
+ */
+function addScene(item) {
+    const partId = item.dataset.partId;
+    const sectionId = item.dataset.sectionId;
+    const episodeId = item.dataset.episodeId;
+    const part = state.project.treatment.parts.find(p => p.id === partId);
+    if (!part) return;
+    const section = part.sections.find(s => s.id === sectionId);
+    if (!section) return;
+    const episode = section.episodes.find(ep => ep.id === episodeId);
+    if (!episode) return;
+    if (!episode.scenes) episode.scenes = [];
+    const sceneNum = episode.scenes.length + 1;
+    const title = prompt('씬 이름:', '씬 ' + sceneNum);
+    if (title === null) return;
+    episode.scenes.push({
+        id: 'scene_' + Date.now(),
+        title: title.trim() || ('씬 ' + sceneNum),
+        events: '',
+        dialogue: '',
+        sceneFunction: ''
+    });
+    renderTreatmentTree();
+    autoSaveLocal();
+}
+
+/**
+ * 씬 필드 업데이트
+ */
+function updateSceneField(treeItem, sceneItem, field, value) {
+    if (!treeItem || !sceneItem || !field) return;
+    const part = state.project.treatment.parts.find(p => p.id === treeItem.dataset.partId);
+    if (!part) return;
+    const section = part.sections.find(s => s.id === treeItem.dataset.sectionId);
+    if (!section) return;
+    const episode = section.episodes.find(ep => ep.id === treeItem.dataset.episodeId);
+    if (!episode) return;
+    const scene = (episode.scenes || []).find(sc => sc.id === sceneItem.dataset.sceneId);
+    if (scene) scene[field] = value;
+}
+
+/**
+ * 씬 액션 처리 (이름변경, 삭제)
+ */
+function handleSceneAction(action, treeItem, sceneItem) {
+    if (!treeItem || !sceneItem) return;
+    const part = state.project.treatment.parts.find(p => p.id === treeItem.dataset.partId);
+    if (!part) return;
+    const section = part.sections.find(s => s.id === treeItem.dataset.sectionId);
+    if (!section) return;
+    const episode = section.episodes.find(ep => ep.id === treeItem.dataset.episodeId);
+    if (!episode) return;
+    if (action === 'rename-scene') {
+        const scene = (episode.scenes || []).find(sc => sc.id === sceneItem.dataset.sceneId);
+        if (!scene) return;
+        const newTitle = prompt('씬 이름:', scene.title);
+        if (newTitle !== null && newTitle.trim()) {
+            scene.title = newTitle.trim();
+            renderTreatmentTree();
+            autoSaveLocal();
+        }
+    } else if (action === 'delete-scene') {
+        if (confirm('이 씬을 삭제할까요?')) {
+            episode.scenes = (episode.scenes || []).filter(sc => sc.id !== sceneItem.dataset.sceneId);
+            renderTreatmentTree();
+            autoSaveLocal();
+        }
+    }
 }
 
 /**

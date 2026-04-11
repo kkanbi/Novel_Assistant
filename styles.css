@@ -2162,6 +2162,185 @@ h4.type-flow        { color: #1aaa82 !important; border-left-color: #1aaa82 !imp
     letter-spacing: 0.03em;
 }
 
+/* 에피소드 내부 섹션 (갈색 제목 접기/펼치기) */
+.ep-section {
+    margin-bottom: 14px;
+}
+
+.ep-section-header {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.ep-section-toggle {
+    font-size: 9px;
+    color: var(--accent);
+    transition: transform 0.15s;
+    flex-shrink: 0;
+}
+
+.ep-section.open .ep-section-toggle {
+    transform: rotate(90deg);
+}
+
+.ep-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.03em;
+}
+
+.ep-section-body {
+    display: none;
+    padding-top: 8px;
+}
+
+.ep-section.open > .ep-section-body {
+    display: block;
+}
+
+/* 씬 아이템 */
+.scene-item {
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2px;
+}
+
+.scene-item:last-of-type {
+    border-bottom: none;
+}
+
+.scene-item-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 4px;
+    cursor: pointer;
+    user-select: none;
+    border-radius: 4px;
+}
+
+.scene-item-header:hover {
+    background: var(--bg-tertiary);
+}
+
+.scene-item-toggle {
+    font-size: 9px;
+    color: var(--text-muted);
+    transition: transform 0.15s;
+    flex-shrink: 0;
+}
+
+.scene-item.open .scene-item-toggle {
+    transform: rotate(90deg);
+}
+
+.scene-item-num {
+    font-size: 10px;
+    color: var(--text-muted);
+    width: 14px;
+    flex-shrink: 0;
+}
+
+.scene-item-title {
+    flex: 1;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.scene-item-actions {
+    display: none;
+    gap: 2px;
+}
+
+.scene-item-header:hover .scene-item-actions {
+    display: flex;
+}
+
+.scene-action-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 2px 4px;
+    color: var(--text-muted);
+    border-radius: 3px;
+}
+
+.scene-action-btn:hover {
+    background: var(--border);
+}
+
+.scene-item-body {
+    display: none;
+    padding: 4px 0 12px 22px;
+}
+
+.scene-item.open > .scene-item-body {
+    display: block;
+}
+
+.scene-field {
+    margin-bottom: 12px;
+}
+
+.scene-field-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.scene-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    padding: 3px 2px 8px;
+    font-size: 12px;
+    font-family: inherit;
+    line-height: 1.7;
+    color: var(--text-primary);
+    resize: none;
+    overflow: hidden;
+    min-height: 26px;
+    outline: none;
+}
+
+.scene-textarea:focus {
+    border-bottom-color: var(--accent);
+}
+
+.scene-textarea::placeholder {
+    color: var(--text-muted);
+}
+
+.scene-add-btn {
+    width: 100%;
+    padding: 6px;
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    margin-top: 6px;
+}
+
+.scene-add-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
 /* 씬 카드 에피소드 필드 — 플랫 스타일 (박스 없음) */
 .tree-item.leaf .tree-content .tree-textarea {
     background: none;
