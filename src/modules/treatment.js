@@ -4,6 +4,11 @@ import { autoSaveLocal } from '../core/storage.js';
 
 let els = {};
 
+function autoResizeTextarea(el) {
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+}
+
 function ensureTreatment() {
     if (!state.project || typeof state.project !== 'object') return;
     if (!state.project.treatment || typeof state.project.treatment !== 'object') {
@@ -35,15 +40,20 @@ export function initTreatment(elements) {
         if (header) {
             const item = header.closest('.tree-item');
             item.classList.toggle('open');
+            // 에피소드 펼쳐질 때 textarea 높이 초기화
+            if (item.classList.contains('open') && item.classList.contains('leaf')) {
+                item.querySelectorAll('.tree-textarea').forEach(autoResizeTextarea);
+            }
         }
     });
 
-    // 입력 이벤트
+    // 입력 이벤트 + 자동 높이 조절
     els.treatmentTree.addEventListener('input', (e) => {
         if (e.target.classList.contains('tree-textarea')) {
             const item = e.target.closest('.tree-item');
             const field = e.target.dataset.episodeField;
             updateEpisodeField(item, field, e.target.value);
+            autoResizeTextarea(e.target);
         }
     });
 
